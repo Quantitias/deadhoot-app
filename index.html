@@ -1,0 +1,2304 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DeadHoot</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html, body { margin: 0; height: auto; min-height: 100%; }
+  body { overflow-y: auto; background: #F3F1FB; }
+  /* สกรอลบาร์ให้เห็นชัดเจนว่าเลื่อนได้ (เผื่อจอที่ปกติซ่อนสกรอลบาร์ไว้) */
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #C7C2EE; border-radius: 999px; }
+  *::-webkit-scrollbar-thumb:hover { background: #A79EE0; }
+  * { scrollbar-width: thin; scrollbar-color: #C7C2EE transparent; }
+
+  /* บนจอมือถือจริง (กว้างไม่เกิน 480px) ให้แอปเต็มจอพอดี ไม่ใช่กรอบจำลองเล็กๆ กลางจอ */
+  @media (max-width: 480px) {
+    .phone-shell { padding: 0 !important; align-items: stretch !important; min-height: 100dvh !important; }
+    .phone-frame { width: 100% !important; height: 100dvh !important; border-radius: 0 !important; box-shadow: none !important; }
+  }
+
+  /* ปุ่มลอยเลื่อนหน้าจอ (ช่วยตอนกรอบแอปสูงเกินจอที่มองเห็น มองไม่เห็นปุ่มด้านล่าง) */
+  #scrollFab {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 99999;
+    width: 46px;
+    height: 46px;
+    border-radius: 999px;
+    border: none;
+    background: #6C5CE7;
+    color: white;
+    font-size: 20px;
+    box-shadow: 0 6px 18px rgba(76,63,207,0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #scrollFab:active { transform: scale(0.94); }
+
+  /* บนจอมือถือจริง แอปเต็มจอพอดีอยู่แล้ว ไม่ต้องมีปุ่มเลื่อนทั้งหน้า (มีแต่จะไปบังปุ่ม + หรือปุ่มอื่นในแอป) */
+  @media (max-width: 480px) {
+    #scrollFab { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<button id="scrollFab" title="เลื่อนขึ้น/ลง" aria-label="เลื่อนขึ้นหรือลงหน้าจอ">⇅</button>
+<script>
+  (function () {
+    var btn = document.getElementById("scrollFab");
+    btn.addEventListener("click", function () {
+      var doc = document.documentElement;
+      var atBottom = window.scrollY + window.innerHeight >= doc.scrollHeight - 20;
+      window.scrollTo({ top: atBottom ? 0 : doc.scrollHeight, behavior: "smooth" });
+    });
+  })();
+</script>
+<script type="text/babel" data-presets="react">
+
+const { useState, useEffect, useCallback, useRef } = React;
+
+/* ------------------------------ ไอคอน (แทน lucide-react ด้วย SVG inline) ------------------------------ */
+function Icon({ children, size = 16, ...props }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      {children}
+    </svg>
+  );
+}
+function ChevronLeft(props) { return <Icon {...props}><polyline points="15 18 9 12 15 6" /></Icon>; }
+function ChevronRight(props) { return <Icon {...props}><polyline points="9 18 15 12 9 6" /></Icon>; }
+function X(props) { return <Icon {...props}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>; }
+function Check(props) { return <Icon {...props}><polyline points="20 6 9 17 4 12" /></Icon>; }
+function Trash2(props) { return <Icon {...props}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></Icon>; }
+function Pencil(props) { return <Icon {...props}><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></Icon>; }
+function Plus(props) { return <Icon {...props}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>; }
+function Bell(props) { return <Icon {...props}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></Icon>; }
+function BellOff(props) { return <Icon {...props}><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M18.63 13A17.89 17.89 0 0 1 18 8" /><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /><path d="M18 8a6 6 0 0 0-9.33-5" /><line x1="1" y1="1" x2="23" y2="23" /></Icon>; }
+function LogOut(props) { return <Icon {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></Icon>; }
+function RefreshCw(props) { return <Icon {...props}><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></Icon>; }
+
+
+/* =========================================================================
+   DeadHoot — เพื่อนติดตามเดดไลน์
+   ระบบจัดเก็บข้อมูล: ใช้ window.storage (ผูกกับบัญชีผู้ใช้แต่ละคนโดยอัตโนมัติ)
+   จึงทำหน้าที่เสมือน "หลังบ้าน" แบบเบาๆ ให้ข้อมูลอยู่ถาวรข้ามเซสชัน
+   หมายเหตุ: ไม่มีเซิร์ฟเวอร์ส่งอีเมลจริง ขั้นตอน OTP จึงเป็นการจำลอง
+   (แสดงรหัสให้บนหน้าจอ) ดูคำอธิบายเพิ่มเติมท้ายไฟล์
+   ========================================================================= */
+
+/* ---------------------------- ค่าคงที่ / ธีมสี ---------------------------- */
+
+const THEMES = {
+  purple: { primary: "#6C5CE7", dark: "#4A3FCF", soft: "#EFECFE", label: "ม่วง" },
+  blue: { primary: "#3E8FE0", dark: "#2A63A8", soft: "#E8F1FC", label: "ฟ้า" },
+  green: { primary: "#2FAE72", dark: "#1F7A50", soft: "#E6F7EE", label: "เขียว" },
+  pink: { primary: "#E0609E", dark: "#A83D71", soft: "#FCE9F1", label: "ชมพู" },
+  orange: { primary: "#F0813C", dark: "#C9601F", soft: "#FDECE0", label: "ส้ม" },
+  teal: { primary: "#17A398", dark: "#0F7A70", soft: "#E1F5F2", label: "มิ้นท์" },
+  slate: { primary: "#475569", dark: "#1E293B", soft: "#E9EDF2", label: "เทาเข้ม" },
+};
+
+const ACCENT = "#FF6B55"; // สีปุ่ม + (คงที่ทุกธีม)
+
+const SUBJECT_PALETTE = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"];
+
+const STATUS = {
+  overdue: { label: "เลยกำหนด", bg: "#E5E7EB", text: "#374151", bar: "#6B7280" },
+  urgent: { label: "ด่วน", bg: "#FEE2E2", text: "#DC2626", bar: "#EF4444" },
+  soon: { label: "เร็วๆนี้", bg: "#FEF3C7", text: "#B45309", bar: "#F59E0B" },
+  chill: { label: "ยังชิล", bg: "#DCFCE7", text: "#16A34A", bar: "#10B981" },
+  done: { label: "เสร็จแล้ว", bg: "#DCFCE7", text: "#16A34A", bar: "#10B981" },
+};
+
+const WEEKDAYS_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+const MONTHS_TH_FULL = [
+  "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+  "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม",
+];
+const MONTHS_TH_SHORT = [
+  "ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค.",
+];
+
+/* ------------------------------ ฟังก์ชันช่วย ------------------------------ */
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function toBuddhistYear(gYear) {
+  return gYear + 543;
+}
+
+function formatThaiDateShort(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getDate()} ${MONTHS_TH_SHORT[d.getMonth()]} ${toBuddhistYear(d.getFullYear())}`;
+}
+
+function pad2(n) {
+  return n.toString().padStart(2, "0");
+}
+
+function dateToKey(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// คำนวณสถานะของงานจากวันเวลาครบกำหนด เทียบกับเวลาปัจจุบัน
+function getTaskStatus(task, now = new Date()) {
+  if (task.completed) return "done";
+  const due = new Date(`${task.dueDate}T${task.dueTime || "23:59"}:00`);
+  const diffH = (due - now) / 36e5;
+  if (diffH < 0) return "overdue";
+  if (diffH <= 24) return "urgent";
+  if (diffH <= 24 * 3) return "soon";
+  return "chill";
+}
+
+function formatRemaining(task, now = new Date()) {
+  const due = new Date(`${task.dueDate}T${task.dueTime || "23:59"}:00`);
+  const diffMs = due - now;
+  if (diffMs < 0) return "เลยกำหนดแล้ว";
+  const diffH = diffMs / 36e5;
+  if (diffH < 1) return `เหลือ ${Math.max(1, Math.round(diffMs / 60000))} นาที`;
+  if (diffH < 24) return `เหลือ ${Math.round(diffH)} ชม.`;
+  return `เหลืออีก ${Math.round(diffH / 24)} วัน`;
+}
+
+// คำนวณช่วงวันที่ของ "สัปดาห์นี้ / เดือนนี้ / ปีนี้" อิงจากวันนี้
+function getPeriodRange(period, ref = new Date()) {
+  const start = new Date(ref);
+  const end = new Date(ref);
+  if (period === "week") {
+    const day = start.getDay(); // 0=อาทิตย์ ... 6=เสาร์
+    start.setDate(start.getDate() - day); // ถอยกลับไปวันอาทิตย์ของสัปดาห์นี้
+    start.setHours(0, 0, 0, 0);
+    end.setTime(start.getTime());
+    end.setDate(end.getDate() + 6); // วันเสาร์
+    end.setHours(23, 59, 59, 999);
+  } else if (period === "month") {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    end.setMonth(end.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+  } else {
+    start.setMonth(0, 1);
+    start.setHours(0, 0, 0, 0);
+    end.setMonth(11, 31);
+    end.setHours(23, 59, 59, 999);
+  }
+  return { start, end };
+}
+
+/* ------------------------------ Storage layer ------------------------------ */
+/* หน้าเว็บนี้โฮสต์แยกต่างหาก (เช่น GitHub Pages) จึงเรียก Apps Script ผ่าน
+   fetch() แบบ JSON RPC แทน google.script.run (ซึ่งใช้ได้เฉพาะตอนเปิดจาก
+   Apps Script เองเท่านั้น) — นำ URL ที่ได้จากขั้นตอน Deploy มาใส่ตรง API_URL */
+
+const API_URL = "https://script.google.com/macros/s/AKfycbzmfyrioKWjb_uDUE7P1XkRnAWck2bcY5mFDfDZBZ7u0rVvAb7CAFoCDHexywrAPOg0OA/exec";
+
+const PROFILE_KEY_PREFIX = "deadhoot:profile:";
+const DATA_KEY_PREFIX = "deadhoot:data:";
+const LOCAL_EMAIL_KEY = "deadhoot_local_email";
+
+function profileKeyFor(email) {
+  return PROFILE_KEY_PREFIX + email.trim().toLowerCase();
+}
+function dataKeyFor(email) {
+  return DATA_KEY_PREFIX + email.trim().toLowerCase();
+}
+
+// จำอีเมลของผู้ใช้ไว้ในเครื่อง (เบราว์เซอร์นี้) เพื่อให้รู้ว่าตอนเปิดแอปครั้งถัดไป
+// ควรไปโหลดข้อมูลของใครกลับมาจากชีท (แยกกันคนละแถวตามอีเมล)
+function getLocalEmail() {
+  try {
+    return localStorage.getItem(LOCAL_EMAIL_KEY);
+  } catch (e) {
+    return null;
+  }
+}
+function setLocalEmail(email) {
+  try {
+    localStorage.setItem(LOCAL_EMAIL_KEY, email.trim().toLowerCase());
+  } catch (e) {
+    console.error("save local email failed", e);
+  }
+}
+function clearLocalEmail() {
+  try {
+    localStorage.removeItem(LOCAL_EMAIL_KEY);
+  } catch (e) {
+    console.error("clear local email failed", e);
+  }
+}
+
+// เรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ (Code.gs) ข้ามโดเมนผ่าน fetch()
+// ใช้ Content-Type: text/plain เพื่อให้เบราว์เซอร์มองว่าเป็น "simple request"
+// จะได้ไม่ต้องส่ง CORS preflight (OPTIONS) ซึ่ง Apps Script Web App จัดการไม่ได้
+async function callServer(fnName, ...args) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ fn: fnName, args: args }),
+  });
+  const json = await res.json();
+  if (json.error) {
+    throw new Error(json.error);
+  }
+  return json.result;
+}
+
+function storageGet(key) {
+  return callServer("getValue", key)
+    .then((raw) => (raw != null ? JSON.parse(raw) : null))
+    .catch((err) => {
+      console.error("storage get failed", err);
+      return null;
+    });
+}
+
+function storageSet(key, value) {
+  return callServer("setValue", key, JSON.stringify(value))
+    .then(() => true)
+    .catch((err) => {
+      console.error("storage set failed", err);
+      return false;
+    });
+}
+
+function defaultSubjects() {
+  return [
+    { id: uid(), code: "SQL101", name: "ฐานข้อมูล", color: SUBJECT_PALETTE[0] },
+    { id: uid(), code: "Stat201", name: "สถิติ", color: SUBJECT_PALETTE[1] },
+    { id: uid(), code: "Mkt110", name: "การตลาด", color: SUBJECT_PALETTE[2] },
+  ];
+}
+
+function defaultTasks(subjects) {
+  const today = new Date();
+  const d = (offsetDays, h, m) => {
+    const t = new Date(today);
+    t.setDate(t.getDate() + offsetDays);
+    return { date: dateToKey(t), time: `${pad2(h)}:${pad2(m)}` };
+  };
+  const t1 = d(0, 23, 59);
+  const t2 = d(1, 23, 59);
+  const t3 = d(3, 23, 59);
+  return [
+    {
+      id: uid(),
+      title: "ส่งรายงาน Database",
+      subjectId: subjects[0].id,
+      dueDate: t1.date,
+      dueTime: t1.time,
+      importance: 3,
+      estimatedHours: 3,
+      remind: [3, 1],
+      completed: false,
+    },
+    {
+      id: uid(),
+      title: "Quiz บทที่ 5",
+      subjectId: subjects[1].id,
+      dueDate: t2.date,
+      dueTime: t2.time,
+      importance: 2,
+      estimatedHours: 1,
+      remind: [1],
+      completed: false,
+    },
+    {
+      id: uid(),
+      title: "งานกลุ่ม Presentation",
+      subjectId: subjects[2].id,
+      dueDate: t3.date,
+      dueTime: t3.time,
+      importance: 2,
+      estimatedHours: 4,
+      remind: [3],
+      completed: false,
+    },
+  ];
+}
+
+/* ------------------------------ UI Bits ------------------------------ */
+
+function OwlAvatar({ mood = "neutral", size = 56 }) {
+  const eyeSize = Math.round(size * 0.16);
+  return (
+    <div
+      className="relative flex items-center justify-center rounded-full bg-white shrink-0"
+      style={{ width: size, height: size, boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}
+    >
+      <div className="flex" style={{ gap: size * 0.14, marginTop: mood === "happy" ? size * 0.02 : -size * 0.02 }}>
+        <div className="relative">
+          <div className="rounded-full bg-gray-800" style={{ width: eyeSize, height: eyeSize }} />
+          {mood === "grumpy" && (
+            <div
+              className="absolute bg-gray-800 rounded-full"
+              style={{
+                width: eyeSize * 1.6,
+                height: eyeSize * 0.4,
+                top: -eyeSize * 0.7,
+                left: -eyeSize * 0.3,
+                transform: "rotate(18deg)",
+              }}
+            />
+          )}
+        </div>
+        <div className="relative">
+          <div className="rounded-full bg-gray-800" style={{ width: eyeSize, height: eyeSize }} />
+          {mood === "grumpy" && (
+            <div
+              className="absolute bg-gray-800 rounded-full"
+              style={{
+                width: eyeSize * 1.6,
+                height: eyeSize * 0.4,
+                top: -eyeSize * 0.7,
+                right: -eyeSize * 0.3,
+                transform: "rotate(-18deg)",
+              }}
+            />
+          )}
+        </div>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: "58%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 0,
+          height: 0,
+          borderLeft: `${size * 0.09}px solid transparent`,
+          borderRight: `${size * 0.09}px solid transparent`,
+          borderTop: `${size * 0.12}px solid #F5A623`,
+        }}
+      />
+      {mood === "happy" && (
+        <>
+          <span style={{ position: "absolute", top: -size * 0.22, right: -size * 0.05, fontSize: size * 0.22 }}>🎉</span>
+          <span style={{ position: "absolute", top: -size * 0.1, left: -size * 0.18, fontSize: size * 0.16 }}>✨</span>
+          <span style={{ position: "absolute", bottom: -size * 0.05, right: -size * 0.2, fontSize: size * 0.16 }}>⭐</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+const AVATAR_FRAME_COLORS = ["#6C5CE7", "#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#EC4899", "#111827"];
+
+// แสดงรูปโปรไฟล์ของผู้ใช้พร้อมกรอบที่เลือกไว้ ถ้ายังไม่ได้ตั้งรูปจะ fallback เป็นนกฮูกมาสคอตแทน
+function AvatarDisplay({ profile, mood = "neutral", size = 56 }) {
+  if (!profile?.avatarDataUrl) {
+    return <OwlAvatar mood={mood} size={size} />;
+  }
+  const shape = profile.avatarFrame || "circle";
+  const frameColor = profile.avatarFrameColor || "#6C5CE7";
+  const borderRadius = shape === "circle" ? "9999px" : shape === "rounded" ? size * 0.22 : "6px";
+  return (
+    <div
+      className="shrink-0 overflow-hidden"
+      style={{
+        width: size,
+        height: size,
+        borderRadius,
+        border: `3px solid ${frameColor}`,
+        boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+      }}
+    >
+      <img src={profile.avatarDataUrl} alt="รูปโปรไฟล์" className="w-full h-full object-cover" />
+    </div>
+  );
+}
+
+// ย่อ/บีบอัดรูปที่ผู้ใช้เลือกจากเครื่องให้เล็กพอจะเก็บใน Google Sheet ได้ (คืนค่าเป็น base64 dataURL)
+function resizeImageFile(file, maxSize = 240, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("โหลดรูปไม่สำเร็จ"));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function PhoneClock() {
+  const [time, setTime] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const h = time.getHours();
+  const m = time.getMinutes();
+  return (
+    <div className="flex items-center justify-between px-5 pt-3 pb-1 text-xs font-semibold text-gray-700">
+      <span>{`${h % 12 === 0 ? 12 : h % 12}:${pad2(m)}`}</span>
+      <span className="tracking-wide">●●● 100%</span>
+    </div>
+  );
+}
+
+function GradientHeader({ theme, title, subtitle, mood, children, profile }) {
+  return (
+    <div
+      className="mx-4 mt-2 rounded-3xl p-5 flex items-center justify-between text-white"
+      style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+    >
+      <div className="pr-3">
+        <div className="text-lg font-bold leading-snug">{title}</div>
+        {subtitle && <div className="text-sm opacity-90 mt-1">{subtitle}</div>}
+        {children}
+      </div>
+      <AvatarDisplay profile={profile} mood={mood} size={56} />
+    </div>
+  );
+}
+
+function BottomNav({ current, onNavigate, theme }) {
+  const items = [
+    { key: "home", icon: "🏠", label: "หลัก" },
+    { key: "calendar", icon: "📅", label: "ปฏิทิน" },
+    { key: "subjects", icon: "📚", label: "วิชา" },
+    { key: "progress", icon: "📊", label: "สรุปผล" },
+    { key: "settings", icon: "⚙️", label: "ตั้งค่า" },
+  ];
+  return (
+    <div className="flex items-stretch justify-between border-t border-gray-100 bg-white px-2 pt-2 pb-3 rounded-b-3xl">
+      {items.map((it) => (
+        <button
+          key={it.key}
+          onClick={() => onNavigate(it.key)}
+          className="flex-1 flex flex-col items-center gap-0.5 py-1"
+        >
+          <span className="text-lg">{it.icon}</span>
+          <span
+            className="text-xs font-medium"
+            style={{ color: current === it.key ? theme.primary : "#9CA3AF" }}
+          >
+            {it.label}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StatusChip({ status }) {
+  const s = STATUS[status];
+  return (
+    <span
+      className="text-xs font-semibold px-3 py-1 rounded-full shrink-0"
+      style={{ background: s.bg, color: s.text }}
+    >
+      {s.label}
+    </span>
+  );
+}
+
+function TaskCard({ task, subject, onToggle, onEdit, onDelete }) {
+  const status = getTaskStatus(task);
+  const s = STATUS[status];
+  return (
+    <div className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 p-3 shadow-sm">
+      <button
+        onClick={() => onToggle(task.id)}
+        className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0"
+        style={{ borderColor: s.bar, background: task.completed ? s.bar : "white" }}
+        aria-label={task.completed ? "ทำเครื่องหมายว่ายังไม่เสร็จ" : "ทำเครื่องหมายว่าเสร็จแล้ว"}
+      >
+        {task.completed && <Check size={14} color="white" />}
+      </button>
+      <button className="flex-1 text-left" onClick={() => onEdit(task)}>
+        <div
+          className={`font-semibold text-gray-800 ${task.completed ? "line-through text-gray-400" : ""}`}
+        >
+          {task.title}
+        </div>
+        <div className="text-xs text-gray-400 mt-0.5">
+          {subject ? `${subject.code} · ` : ""}
+          {task.completed ? "ทำเสร็จแล้ว" : formatRemaining(task)}
+        </div>
+      </button>
+      <StatusChip status={status} />
+      <button
+        onClick={() => onDelete(task.id)}
+        className="text-gray-300 hover:text-red-400 p-1"
+        aria-label="ลบงาน"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  );
+}
+
+function Toast({ message }) {
+  if (!message) return null;
+  return (
+    <div className="absolute left-1/2 -translate-x-1/2 bottom-24 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50">
+      {message}
+    </div>
+  );
+}
+
+/* ------------------------------ Onboarding ------------------------------ */
+
+function WelcomeScreen({ theme, onLogin, onSignup }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full px-8 text-center gap-6">
+      <OwlAvatar mood="grumpy" size={96} />
+      <div>
+        <div className="text-2xl font-bold" style={{ color: theme.dark }}>
+          🦉 DeadHoot
+        </div>
+        <div className="text-gray-500 mt-2 text-sm leading-relaxed">
+          เพื่อนติดตามเดดไลน์ พร้อมมาสคอตนกฮูก "ฮูก"
+          <br />
+          คอยเตือนก่อนงานจะสาย
+        </div>
+      </div>
+      <div className="w-full flex flex-col gap-2">
+        <button
+          onClick={onLogin}
+          className="w-full py-3 rounded-2xl text-white font-semibold"
+          style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+        >
+          เข้าสู่ระบบ
+        </button>
+        <button
+          onClick={onSignup}
+          className="w-full py-3 rounded-2xl font-semibold border-2"
+          style={{ borderColor: theme.primary, color: theme.primary }}
+        >
+          สมัครสมาชิกใหม่
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen({ theme, email, setEmail, password, setPassword, onSubmit, onBack, onForgotPassword, error, loading }) {
+  return (
+    <div className="flex flex-col h-full px-6 pt-10 gap-5">
+      <button onClick={onBack} className="text-sm text-gray-400 flex items-center gap-1 self-start">
+        <ChevronLeft size={16} /> กลับ
+      </button>
+      <div>
+        <div className="text-xl font-bold" style={{ color: theme.dark }}>
+          เข้าสู่ระบบ
+        </div>
+        <div className="text-sm text-gray-400 mt-1">กรอกอีเมลและรหัสผ่านของคุณ</div>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600">📧 อีเมล</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+      </div>
+      <div>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-gray-600">🔒 รหัสผ่าน</label>
+          <button onClick={onForgotPassword} className="text-xs font-semibold" style={{ color: theme.primary }}>
+            ลืมรหัสผ่าน?
+          </button>
+        </div>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+        {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
+      </div>
+      <button
+        onClick={onSubmit}
+        disabled={loading}
+        className="w-full py-3 rounded-2xl text-white font-semibold mt-auto mb-6 disabled:opacity-60"
+        style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+      >
+        {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+      </button>
+    </div>
+  );
+}
+
+function ResetPasswordScreen({ theme, email, password, setPassword, confirmPassword, setConfirmPassword, onSubmit, error, loading }) {
+  return (
+    <div className="flex flex-col h-full px-6 pt-10 gap-5">
+      <div>
+        <div className="text-xl font-bold" style={{ color: theme.dark }}>
+          ตั้งรหัสผ่านใหม่
+        </div>
+        <div className="text-sm text-gray-400 mt-1">
+          สำหรับบัญชี <span className="font-medium text-gray-600">{email}</span>
+        </div>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600">🔒 รหัสผ่านใหม่</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="อย่างน้อย 6 ตัวอักษร"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600">🔒 ยืนยันรหัสผ่านใหม่</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="พิมพ์รหัสผ่านซ้ำ"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+        {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
+      </div>
+      <button
+        onClick={onSubmit}
+        disabled={loading}
+        className="w-full py-3 rounded-2xl text-white font-semibold mt-auto mb-6 disabled:opacity-60"
+        style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+      >
+        {loading ? "กำลังบันทึก..." : "ตั้งรหัสผ่านใหม่"}
+      </button>
+    </div>
+  );
+}
+
+function SignupEmailScreen({ theme, email, setEmail, password, setPassword, confirmPassword, setConfirmPassword, onNext, onBack, error, loading }) {
+  return (
+    <div className="flex flex-col h-full px-6 pt-10 gap-5">
+      <button onClick={onBack} className="text-sm text-gray-400 flex items-center gap-1 self-start">
+        <ChevronLeft size={16} /> กลับ
+      </button>
+      <div>
+        <div className="text-xl font-bold" style={{ color: theme.dark }}>
+          สมัครใช้งานด้วยอีเมล
+        </div>
+        <div className="text-sm text-gray-400 mt-1">
+          กรอกอีเมลและตั้งรหัสผ่าน เราจะส่งรหัสยืนยัน 6 หลักไปที่อีเมลของคุณ
+        </div>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600">📧 อีเมล</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600">🔒 ตั้งรหัสผ่าน</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="อย่างน้อย 6 ตัวอักษร"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600">🔒 ยืนยันรหัสผ่านอีกครั้ง</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="พิมพ์รหัสผ่านซ้ำ"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+        {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
+      </div>
+      <button
+        onClick={onNext}
+        disabled={loading}
+        className="w-full py-3 rounded-2xl text-white font-semibold mt-auto mb-6 disabled:opacity-60"
+        style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+      >
+        {loading ? "กำลังส่งรหัสยืนยัน..." : "ส่งรหัสยืนยัน"}
+      </button>
+    </div>
+  );
+}
+
+function OtpScreen({ theme, email, otpInput, setOtpInput, onVerify, onResend, error, loading, resendCooldown }) {
+  return (
+    <div className="flex flex-col h-full px-6 pt-10 gap-5">
+      <div>
+        <div className="text-xl font-bold" style={{ color: theme.dark }}>
+          ยืนยันรหัส OTP
+        </div>
+        <div className="text-sm text-gray-400 mt-1">
+          เราส่งรหัส 6 หลักไปยัง <span className="font-medium text-gray-600">{email}</span> แล้ว
+          กรุณาเช็คกล่องข้อความ (รวมถึงถังขยะ/สแปม)
+        </div>
+      </div>
+
+      <input
+        inputMode="numeric"
+        maxLength={6}
+        value={otpInput}
+        onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        placeholder="••••••"
+        style={{ letterSpacing: "0.5em" }}
+        className="w-full text-center text-2xl border border-gray-200 rounded-2xl p-3 focus:outline-none focus:ring-2"
+      />
+      {error && <div className="text-xs text-red-500 text-center">{error}</div>}
+
+      <button
+        onClick={onVerify}
+        disabled={loading}
+        className="w-full py-3 rounded-2xl text-white font-semibold disabled:opacity-60"
+        style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+      >
+        {loading ? "กำลังตรวจสอบ..." : "ยืนยันรหัส"}
+      </button>
+      <button
+        onClick={onResend}
+        disabled={resendCooldown > 0}
+        className="text-sm text-gray-400 flex items-center justify-center gap-1 disabled:opacity-50"
+      >
+        <RefreshCw size={14} /> {resendCooldown > 0 ? `ส่งรหัสอีกครั้งได้ใน ${resendCooldown} วิ` : "ส่งรหัสอีกครั้ง"}
+      </button>
+    </div>
+  );
+}
+
+function ProfileSetupScreen({ theme, name, setName, onFinish, error, loading }) {
+  return (
+    <div className="flex flex-col h-full px-6 pt-10 gap-5">
+      <div className="flex justify-center">
+        <OwlAvatar mood="happy" size={80} />
+      </div>
+      <div className="text-center">
+        <div className="text-xl font-bold" style={{ color: theme.dark }}>
+          ยืนยันตัวตนสำเร็จ 🎉
+        </div>
+        <div className="text-sm text-gray-400 mt-1">มาตั้งชื่อที่ให้ฮูกเรียกคุณกันเถอะ</div>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600">👋 ชื่อเล่นของคุณ</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="เช่น ปาล์ม"
+          className="w-full mt-1 border border-gray-200 rounded-2xl p-3 text-gray-800 focus:outline-none focus:ring-2"
+        />
+        {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
+      </div>
+      <button
+        onClick={onFinish}
+        disabled={loading}
+        className="w-full py-3 rounded-2xl text-white font-semibold mt-auto mb-6 disabled:opacity-60"
+        style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+      >
+        {loading ? "กำลังบันทึก..." : "เริ่มใช้งาน DeadHoot"}
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------ Home ------------------------------ */
+
+function HomeScreen({ theme, profile, tasks, subjects, onToggle, onEdit, onDelete, onAdd, current, onNavigate }) {
+  const now = new Date();
+  const incomplete = tasks.filter((t) => !t.completed);
+  const urgentCount = incomplete.filter((t) => getTaskStatus(t, now) === "urgent" || getTaskStatus(t, now) === "overdue").length;
+  const progressCount = incomplete.filter((t) => {
+    const s = getTaskStatus(t, now);
+    return s === "soon" || s === "chill";
+  }).length;
+  const doneCount = tasks.filter((t) => t.completed).length;
+
+  const upcoming = [...incomplete]
+    .sort((a, b) => new Date(`${a.dueDate}T${a.dueTime || "23:59"}`) - new Date(`${b.dueDate}T${b.dueTime || "23:59"}`))
+    .slice(0, 5);
+
+  const subjectById = Object.fromEntries(subjects.map((s) => [s.id, s]));
+
+  return (
+    <div className="relative flex flex-col h-full">
+      <GradientHeader
+        theme={theme}
+        title={`สวัสดี ${profile?.name || "เพื่อน"} 👋`}
+        subtitle={`วันนี้มีงาน ${incomplete.length} ชิ้นรอคุณอยู่`}
+        mood="grumpy"
+        profile={profile}
+      />
+
+      <div className="grid grid-cols-3 gap-3 px-4 mt-4">
+        <div className="rounded-2xl p-3 text-center" style={{ background: "#FDE7E7" }}>
+          <div className="text-xl font-bold" style={{ color: "#DC2626" }}>{urgentCount}</div>
+          <div className="text-xs text-gray-500 mt-0.5">ใกล้ครบกำหนด</div>
+        </div>
+        <div className="rounded-2xl p-3 text-center" style={{ background: "#FEF3D6" }}>
+          <div className="text-xl font-bold" style={{ color: "#B45309" }}>{progressCount}</div>
+          <div className="text-xs text-gray-500 mt-0.5">กำลังทำ</div>
+        </div>
+        <div className="rounded-2xl p-3 text-center" style={{ background: "#DFF7E6" }}>
+          <div className="text-xl font-bold" style={{ color: "#16A34A" }}>{doneCount}</div>
+          <div className="text-xs text-gray-500 mt-0.5">เสร็จแล้ว</div>
+        </div>
+      </div>
+
+      <div className="px-4 mt-5 flex-1 overflow-y-auto pb-2">
+        <div className="text-sm font-bold text-gray-700 mb-2">🔥 งานใกล้ถึงเดดไลน์</div>
+        <div className="flex flex-col gap-2">
+          {upcoming.length === 0 && (
+            <div className="text-sm text-gray-400 text-center py-8">
+              ยังไม่มีงานค้าง — กด + เพื่อเพิ่มงานแรกของคุณ
+            </div>
+          )}
+          {upcoming.map((t) => (
+            <TaskCard
+              key={t.id}
+              task={t}
+              subject={subjectById[t.subjectId]}
+              onToggle={onToggle}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={onAdd}
+        className="absolute right-4 bottom-20 w-14 h-14 rounded-full text-white text-2xl font-bold shadow-lg flex items-center justify-center"
+        style={{ background: ACCENT }}
+        aria-label="เพิ่มงานใหม่"
+      >
+        +
+      </button>
+
+      <BottomNav current={current} onNavigate={onNavigate} theme={theme} />
+    </div>
+  );
+}
+
+/* ------------------------------ Add / Edit Task ------------------------------ */
+
+function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
+  const [title, setTitle] = useState(initial?.title || "");
+  const [subjectId, setSubjectId] = useState(initial?.subjectId || subjects[0]?.id || "");
+  const [dueDate, setDueDate] = useState(initial?.dueDate || dateToKey(new Date()));
+  const [dueTime, setDueTime] = useState(initial?.dueTime || "23:59");
+  const [importance, setImportance] = useState(initial?.importance || 2);
+  const [estimatedHours, setEstimatedHours] = useState(initial?.estimatedHours ?? 1);
+  const [remind, setRemind] = useState(initial?.remind || [1]);
+  const [error, setError] = useState("");
+
+  const toggleRemind = (d) => {
+    setRemind((r) => (r.includes(d) ? r.filter((x) => x !== d) : [...r, d].sort((a, b) => b - a)));
+  };
+
+  const handleSave = () => {
+    if (!title.trim()) {
+      setError("กรุณากรอกชื่องาน");
+      return;
+    }
+    if (!subjectId) {
+      setError("กรุณาเลือกวิชา");
+      return;
+    }
+    onSave({
+      id: initial?.id || uid(),
+      title: title.trim(),
+      subjectId,
+      dueDate,
+      dueTime,
+      importance,
+      estimatedHours: Number(estimatedHours) || 0,
+      remind,
+      completed: initial?.completed || false,
+    });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 px-4 pt-2">
+        <button onClick={onCancel} className="p-2 -ml-2 text-gray-500">
+          <ChevronLeft size={22} />
+        </button>
+      </div>
+      <div
+        className="mx-4 mt-1 rounded-3xl p-5 flex items-center justify-between text-white"
+        style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+      >
+        <div>
+          <div className="text-lg font-bold">{initial ? "แก้ไขงาน" : "+ เพิ่มงานใหม่"}</div>
+          <div className="text-sm opacity-90 mt-1">กรอกให้ฮูกช่วยจำแทนคุณ</div>
+        </div>
+        <OwlAvatar mood="happy" size={56} />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 mt-4 flex flex-col gap-3 pb-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <label className="text-sm font-medium text-gray-500">📝 ชื่องาน</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="รายงานวิเคราะห์ข้อมูล..."
+            className="w-full mt-1 text-gray-800 focus:outline-none"
+          />
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <label className="text-sm font-medium text-gray-500">📖 วิชา</label>
+          <select
+            value={subjectId}
+            onChange={(e) => setSubjectId(e.target.value)}
+            className="w-full mt-1 text-gray-800 bg-transparent focus:outline-none"
+          >
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.code} - {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <label className="text-sm font-medium text-gray-500">📅 วันครบกำหนด</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full mt-1 text-gray-800 focus:outline-none bg-transparent"
+            />
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <label className="text-sm font-medium text-gray-500">⏰ เวลา</label>
+            <input
+              type="time"
+              value={dueTime}
+              onChange={(e) => setDueTime(e.target.value)}
+              className="w-full mt-1 text-gray-800 focus:outline-none bg-transparent"
+            />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <label className="text-sm font-medium text-gray-500">⭐ ความสำคัญ</label>
+          <div className="flex gap-2 mt-2">
+            {[1, 2, 3].map((lvl) => (
+              <button
+                key={lvl}
+                onClick={() => setImportance(lvl)}
+                className="w-5 h-5 rounded-full border-2"
+                style={{
+                  background: lvl <= importance ? theme.primary : "transparent",
+                  borderColor: theme.primary,
+                }}
+                aria-label={`ระดับความสำคัญ ${lvl}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <label className="text-sm font-medium text-gray-500">⏳ เวลาที่คาดว่าจะใช้ (ชั่วโมง)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            value={estimatedHours}
+            onChange={(e) => setEstimatedHours(e.target.value)}
+            className="w-full mt-1 text-gray-800 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <div className="text-sm font-medium text-gray-500 mb-2">🔔 แจ้งเตือนล่วงหน้า</div>
+          <div className="flex gap-2">
+            {[3, 1].map((d) => (
+              <button
+                key={d}
+                onClick={() => toggleRemind(d)}
+                className="flex-1 border-2 rounded-2xl py-2 text-sm font-semibold flex items-center justify-center gap-1"
+                style={{
+                  borderColor: theme.primary,
+                  color: remind.includes(d) ? "white" : theme.primary,
+                  background: remind.includes(d) ? theme.primary : "white",
+                }}
+              >
+                {remind.includes(d) && <Check size={14} />} {d} วัน
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <div className="text-xs text-red-500 text-center">{error}</div>}
+      </div>
+
+      <div className="px-4 pb-5 pt-2">
+        <button
+          onClick={handleSave}
+          className="w-full py-3 rounded-2xl text-white font-semibold"
+          style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+        >
+          {initial ? "บันทึกการแก้ไข" : "บันทึกงาน"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------ Result ------------------------------ */
+
+function ResultScreen({ theme, tasks, subjects, onViewCalendar, onViewProgress, onBackHome }) {
+  const total = tasks.length || 1;
+  const done = tasks.filter((t) => t.completed).length;
+  const percent = Math.round((done / total) * 100);
+
+  const incomplete = tasks.filter((t) => !t.completed);
+  const nearest = [...incomplete].sort(
+    (a, b) => new Date(`${a.dueDate}T${a.dueTime || "23:59"}`) - new Date(`${b.dueDate}T${b.dueTime || "23:59"}`)
+  )[0];
+  const nearestSubject = subjects.find((s) => s.id === nearest?.subjectId);
+
+  const now = new Date();
+  const in7 = new Date(now);
+  in7.setDate(in7.getDate() + 7);
+  const in14 = new Date(now);
+  in14.setDate(in14.getDate() + 14);
+  const nextWeekTasks = incomplete.filter((t) => {
+    const due = new Date(`${t.dueDate}T${t.dueTime || "23:59"}`);
+    return due >= in7 && due <= in14;
+  });
+  const nextWeekSubjects = new Set(nextWeekTasks.map((t) => t.subjectId));
+
+  return (
+    <div className="flex flex-col h-full px-4 pt-4 pb-5">
+      <button onClick={onBackHome} className="text-sm text-gray-400 flex items-center gap-1 mb-2 self-start">
+        <ChevronLeft size={16} /> กลับหน้าหลัก
+      </button>
+
+      <div className="bg-white rounded-3xl border border-gray-100 p-6 flex flex-col items-center text-center">
+        <OwlAvatar mood="happy" size={72} />
+        <div className="text-lg font-bold text-gray-800 mt-3">เยี่ยมมาก! บันทึกสำเร็จ 🎉</div>
+        <div className="text-sm text-gray-400 mt-1">ฮูกจะคอยเตือนก่อนถึงเวลาให้เอง</div>
+      </div>
+
+      <div className="mt-5">
+        <div className="text-sm font-bold text-gray-700 mb-2">📊 ภาพรวมสัปดาห์นี้</div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="text-sm font-semibold text-gray-700 mb-2">งานเสร็จตามแผน — {percent}%</div>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: "#34D399" }} />
+          </div>
+        </div>
+      </div>
+
+      {nearest && (
+        <div className="mt-3 bg-white rounded-2xl border border-gray-100 p-4 flex gap-3">
+          <div className="w-1.5 rounded-full" style={{ background: STATUS[getTaskStatus(nearest)].bar }} />
+          <div>
+            <div className="font-semibold text-gray-800 flex items-center gap-1">🔔 อย่าลืม!</div>
+            <div className="text-sm text-gray-500 mt-0.5">
+              {nearestSubject?.code || nearest.title} {formatRemaining(nearest)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 bg-white rounded-2xl border border-gray-100 p-4 flex gap-3">
+        <div className="w-1.5 rounded-full" style={{ background: "#34D399" }} />
+        <div>
+          <div className="font-semibold text-gray-800">สัปดาห์หน้า</div>
+          <div className="text-sm text-gray-500 mt-0.5">
+            มีงาน {nextWeekTasks.length} ชิ้น จาก {nextWeekSubjects.size} วิชา
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={onViewCalendar}
+        className="w-full py-3 rounded-2xl text-white font-semibold mt-5"
+        style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+      >
+        ดูปฏิทินแบบเต็ม →
+      </button>
+      <button onClick={onViewProgress} className="w-full py-2 text-sm font-semibold mt-2" style={{ color: theme.primary }}>
+        ดูสรุปความคืบหน้าแบบละเอียด →
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------ Calendar ------------------------------ */
+
+function CalendarScreen({ theme, tasks, subjects, onToggle, onEdit, onDelete, current, onNavigate }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selected, setSelected] = useState(dateToKey(today));
+
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const tasksByDate = {};
+  tasks.forEach((t) => {
+    if (!tasksByDate[t.dueDate]) tasksByDate[t.dueDate] = [];
+    tasksByDate[t.dueDate].push(t);
+  });
+
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const changeMonth = (delta) => {
+    let m = viewMonth + delta;
+    let y = viewYear;
+    if (m < 0) { m = 11; y -= 1; }
+    if (m > 11) { m = 0; y += 1; }
+    setViewMonth(m);
+    setViewYear(y);
+  };
+
+  const subjectById = Object.fromEntries(subjects.map((s) => [s.id, s]));
+  const selectedTasks = (tasksByDate[selected] || []).sort((a, b) => (a.dueTime || "").localeCompare(b.dueTime || ""));
+
+  return (
+    <div className="flex flex-col h-full">
+      <GradientHeader theme={theme} title="📅 ปฏิทิน" subtitle="ดูงานทั้งหมดของคุณในเดือนนี้" mood="neutral" />
+
+      <div className="px-4 mt-4 flex items-center justify-between">
+        <button onClick={() => changeMonth(-1)} className="p-2 text-gray-400">
+          <ChevronLeft size={20} />
+        </button>
+        <div className="font-bold text-gray-700">
+          {MONTHS_TH_FULL[viewMonth]} {toBuddhistYear(viewYear)}
+        </div>
+        <button onClick={() => changeMonth(1)} className="p-2 text-gray-400">
+          <ChevronRight size={20} />
+        </button>
+      </div>
+
+      <div className="px-4 mt-3 grid grid-cols-7 gap-1 text-center text-xs text-gray-400">
+        {WEEKDAYS_TH.map((w) => (
+          <div key={w}>{w}</div>
+        ))}
+      </div>
+
+      <div className="px-4 mt-1 grid grid-cols-7 gap-1">
+        {cells.map((d, idx) => {
+          if (!d) return <div key={idx} />;
+          const key = `${viewYear}-${pad2(viewMonth + 1)}-${pad2(d)}`;
+          const dayTasks = tasksByDate[key] || [];
+          const isToday = key === dateToKey(today);
+          const isSelected = key === selected;
+          const statuses = Array.from(new Set(dayTasks.map((t) => getTaskStatus(t))));
+          return (
+            <button
+              key={idx}
+              onClick={() => setSelected(key)}
+              className="aspect-square rounded-xl flex flex-col items-center justify-center relative"
+              style={{
+                background: isSelected ? theme.soft : "transparent",
+                border: isToday ? `1.5px solid ${theme.primary}` : "1px solid transparent",
+              }}
+            >
+              <span className="text-sm text-gray-700">{d}</span>
+              <div className="flex gap-0.5 mt-0.5">
+                {statuses.slice(0, 3).map((s) => (
+                  <span key={s} className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS[s].bar }} />
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 mt-4 pb-2">
+        <div className="text-sm font-bold text-gray-700 mb-2">
+          งานวันที่ {formatThaiDateShort(selected)}
+        </div>
+        <div className="flex flex-col gap-2">
+          {selectedTasks.length === 0 && (
+            <div className="text-sm text-gray-400 text-center py-6">ไม่มีงานในวันนี้</div>
+          )}
+          {selectedTasks.map((t) => (
+            <TaskCard
+              key={t.id}
+              task={t}
+              subject={subjectById[t.subjectId]}
+              onToggle={onToggle}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      </div>
+
+      <BottomNav current={current} onNavigate={onNavigate} theme={theme} />
+    </div>
+  );
+}
+
+/* ------------------------------ Subjects ------------------------------ */
+
+function SubjectModal({ theme, initial, onSave, onClose }) {
+  const [code, setCode] = useState(initial?.code || "");
+  const [name, setName] = useState(initial?.name || "");
+  const [color, setColor] = useState(initial?.color || SUBJECT_PALETTE[0]);
+  const [error, setError] = useState("");
+  const [show, setShow] = useState(false); // ควบคุมสถานะ enter/exit เพื่อ animate เข้า-ออกอย่างนุ่มนวล
+
+  // เลื่อนเข้าเฟรมถัดไปหลัง mount เพื่อให้ transition ทำงาน (จาก 0 -> 1)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShow(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  // ปิดแบบนุ่มนวล: เฟดออกก่อน แล้วค่อยเรียก callback จริงหลังเล่น transition จบ
+  const dismiss = (after) => {
+    setShow(false);
+    setTimeout(after, 220);
+  };
+
+  const handleSave = () => {
+    if (!code.trim() || !name.trim()) {
+      setError("กรุณากรอกรหัสและชื่อวิชา");
+      return;
+    }
+    const subj = { id: initial?.id || uid(), code: code.trim(), name: name.trim(), color };
+    dismiss(() => onSave(subj));
+  };
+
+  return (
+    <div
+      className="absolute inset-0 flex items-end z-40 transition-opacity duration-300 ease-out"
+      style={{ background: "rgba(17,24,39,0.45)", opacity: show ? 1 : 0 }}
+      onClick={() => dismiss(onClose)}
+      role="presentation"
+    >
+      <div
+        className="bg-white w-full rounded-t-3xl p-5 transition-transform duration-300 ease-out"
+        style={{
+          transform: show ? "translateY(0)" : "translateY(100%)",
+          boxShadow: "0 -12px 34px rgba(17,24,39,0.18)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200" />
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-bold text-gray-800">{initial ? "แก้ไขวิชา" : "เพิ่มวิชาใหม่"}</div>
+          <button onClick={() => dismiss(onClose)} className="text-gray-400">
+            <X size={20} />
+          </button>
+        </div>
+        <label className="text-sm text-gray-500">รหัสวิชา</label>
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="เช่น SQL101"
+          className="w-full border border-gray-200 rounded-2xl p-3 mt-1 mb-3 focus:outline-none"
+        />
+        <label className="text-sm text-gray-500">ชื่อวิชา</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="เช่น ฐานข้อมูล"
+          className="w-full border border-gray-200 rounded-2xl p-3 mt-1 mb-3 focus:outline-none"
+        />
+        <label className="text-sm text-gray-500">สี</label>
+        <div className="flex gap-2 mt-1 mb-4">
+          {SUBJECT_PALETTE.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className="w-8 h-8 rounded-full"
+              style={{ background: c, border: color === c ? "3px solid #111" : "3px solid transparent" }}
+            />
+          ))}
+        </div>
+        {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
+        <button
+          onClick={handleSave}
+          className="w-full py-3 rounded-2xl text-white font-semibold"
+          style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+        >
+          บันทึก
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SubjectsScreen({ theme, subjects, tasks, onSave, onDelete, current, onNavigate }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+
+  return (
+    <div className="flex flex-col h-full relative">
+      <GradientHeader theme={theme} title="📚 วิชาของฉัน" subtitle={`ทั้งหมด ${subjects.length} วิชา`} mood="neutral" />
+
+      <div className="flex-1 overflow-y-auto px-4 mt-4 flex flex-col gap-2 pb-4">
+        {subjects.map((s) => {
+          const count = tasks.filter((t) => t.subjectId === s.id && !t.completed).length;
+          return (
+            <div key={s.id} className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 p-3">
+              <div className="w-3 h-3 rounded-full shrink-0" style={{ background: s.color }} />
+              <div className="flex-1">
+                <div className="font-semibold text-gray-800">{s.code}</div>
+                <div className="text-xs text-gray-400">{s.name} · งานค้าง {count} ชิ้น</div>
+              </div>
+              <button
+                onClick={() => {
+                  setEditing(s);
+                  setModalOpen(true);
+                }}
+                className="text-gray-300 p-1"
+              >
+                <Pencil size={16} />
+              </button>
+              <button onClick={() => onDelete(s.id)} className="text-gray-300 hover:text-red-400 p-1">
+                <Trash2 size={16} />
+              </button>
+            </div>
+          );
+        })}
+
+        <button
+          onClick={() => {
+            setEditing(null);
+            setModalOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 border-2 border-dashed rounded-2xl py-3 text-sm font-semibold mt-1"
+          style={{ borderColor: theme.primary, color: theme.primary }}
+        >
+          <Plus size={16} /> เพิ่มวิชาใหม่
+        </button>
+      </div>
+
+      {modalOpen && (
+        <SubjectModal
+          theme={theme}
+          initial={editing}
+          onClose={() => setModalOpen(false)}
+          onSave={(subj) => {
+            onSave(subj);
+            setModalOpen(false);
+          }}
+        />
+      )}
+
+      <BottomNav current={current} onNavigate={onNavigate} theme={theme} />
+    </div>
+  );
+}
+
+/* ------------------------------ Progress / Summary ------------------------------ */
+
+function ProgressScreen({ theme, tasks, subjects, current, onNavigate }) {
+  const [period, setPeriod] = useState("week"); // week | month | year
+  const [subjectFilter, setSubjectFilter] = useState("all");
+
+  const { start, end } = getPeriodRange(period);
+  const inRange = (t) => {
+    const due = new Date(`${t.dueDate}T${t.dueTime || "23:59"}:00`);
+    return due >= start && due <= end;
+  };
+
+  const periodTasks = tasks.filter(inRange);
+  const filteredTasks = subjectFilter === "all" ? periodTasks : periodTasks.filter((t) => t.subjectId === subjectFilter);
+  const doneTasks = filteredTasks.filter((t) => t.completed);
+  const percent = filteredTasks.length ? Math.round((doneTasks.length / filteredTasks.length) * 100) : 0;
+
+  const perSubject = subjects.map((s) => {
+    const subjTasks = periodTasks.filter((t) => t.subjectId === s.id);
+    const subjDone = subjTasks.filter((t) => t.completed);
+    return {
+      subject: s,
+      total: subjTasks.length,
+      done: subjDone.length,
+      percent: subjTasks.length ? Math.round((subjDone.length / subjTasks.length) * 100) : 0,
+    };
+  }).filter((row) => row.total > 0);
+
+  const archive = [...doneTasks].sort((a, b) => {
+    const ad = a.completedAt || `${a.dueDate}T${a.dueTime || "23:59"}`;
+    const bd = b.completedAt || `${b.dueDate}T${b.dueTime || "23:59"}`;
+    return new Date(bd) - new Date(ad);
+  });
+
+  const subjectById = Object.fromEntries(subjects.map((s) => [s.id, s]));
+
+  const periodLabel = { week: "สัปดาห์นี้", month: "เดือนนี้", year: "ปีนี้" };
+
+  return (
+    <div className="flex flex-col h-full">
+      <GradientHeader theme={theme} title="📊 ความคืบหน้า" subtitle="ดูสถิติการทำงานของคุณย้อนหลัง" mood="neutral" />
+
+      <div className="px-4 mt-4">
+        <div className="flex gap-2">
+          {["week", "month", "year"].map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className="flex-1 rounded-2xl py-2 text-sm font-semibold"
+              style={{
+                background: period === p ? theme.primary : "white",
+                color: period === p ? "white" : theme.primary,
+                border: `2px solid ${theme.primary}`,
+              }}
+            >
+              {periodLabel[p]}
+            </button>
+          ))}
+        </div>
+
+        <select
+          value={subjectFilter}
+          onChange={(e) => setSubjectFilter(e.target.value)}
+          className="w-full mt-3 border border-gray-200 rounded-2xl p-3 text-gray-700 bg-white focus:outline-none"
+        >
+          <option value="all">ทุกวิชา</option>
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.code} - {s.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 mt-4 pb-4 flex flex-col gap-3">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="text-sm font-semibold text-gray-700 mb-2">
+            งานเสร็จตามแผน{subjectFilter !== "all" ? ` (${subjectById[subjectFilter]?.code})` : ""} — {percent}%
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: "#34D399" }} />
+          </div>
+          <div className="text-xs text-gray-400 mt-2">
+            เสร็จแล้ว {doneTasks.length} จาก {filteredTasks.length} งาน · {periodLabel[period]}
+          </div>
+        </div>
+
+        {subjectFilter === "all" && perSubject.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <div className="text-sm font-bold text-gray-700 mb-3">แยกตามวิชา</div>
+            <div className="flex flex-col gap-3">
+              {perSubject.map((row) => (
+                <div key={row.subject.id}>
+                  <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                    <span className="flex items-center gap-1.5 font-semibold">
+                      <span className="w-2 h-2 rounded-full inline-block" style={{ background: row.subject.color }} />
+                      {row.subject.code}
+                    </span>
+                    <span>{row.done}/{row.total} · {row.percent}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full" style={{ width: `${row.percent}%`, background: row.subject.color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <div className="text-sm font-bold text-gray-700 mb-2">🗂️ คลังงานที่เสร็จแล้ว ({periodLabel[period]})</div>
+          <div className="flex flex-col gap-2">
+            {archive.length === 0 && (
+              <div className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-100">
+                ยังไม่มีงานที่เสร็จในช่วงนี้
+              </div>
+            )}
+            {archive.map((t) => {
+              const subj = subjectById[t.subjectId];
+              const completedDateKey = (t.completedAt || `${t.dueDate}T00:00:00`).slice(0, 10);
+              return (
+                <div key={t.id} className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 p-3">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                    style={{ background: STATUS.done.bar }}
+                  >
+                    <Check size={14} color="white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-800 line-through text-gray-400">{t.title}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {subj ? `${subj.code} · ` : ""}เสร็จเมื่อ {formatThaiDateShort(completedDateKey)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <BottomNav current={current} onNavigate={onNavigate} theme={theme} />
+    </div>
+  );
+}
+
+/* ------------------------------ Settings ------------------------------ */
+
+function SettingsScreen({
+  theme,
+  themeKey,
+  onThemeChange,
+  profile,
+  onProfileSave,
+  notifications,
+  onToggleNotifications,
+  onLogout,
+  current,
+  onNavigate,
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(profile?.name || "");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handlePickPhoto = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // เผื่อเลือกไฟล์เดิมซ้ำครั้งถัดไปก็ยังทริกเกอร์ change
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setUploadError("กรุณาเลือกไฟล์รูปภาพเท่านั้น");
+      return;
+    }
+    setUploadError("");
+    setUploading(true);
+    try {
+      const dataUrl = await resizeImageFile(file);
+      onProfileSave({ ...profile, avatarDataUrl: dataUrl });
+    } catch (err) {
+      setUploadError("อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <GradientHeader theme={theme} title="⚙️ ตั้งค่า" subtitle="จัดการโปรไฟล์และการตั้งค่าแอป" mood="neutral" profile={profile} />
+
+      <div className="flex-1 overflow-y-auto px-4 mt-4 flex flex-col gap-4 pb-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="flex items-center gap-3">
+            <button onClick={handlePickPhoto} className="relative shrink-0" aria-label="เปลี่ยนรูปโปรไฟล์">
+              <AvatarDisplay profile={profile} mood="happy" size={48} />
+              <div
+                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white"
+                style={{ background: theme.primary }}
+              >
+                <Pencil size={11} />
+              </div>
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            <div className="flex-1">
+              {editing ? (
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full border-b border-gray-200 focus:outline-none font-semibold text-gray-800"
+                />
+              ) : (
+                <div className="font-semibold text-gray-800">{profile?.name}</div>
+              )}
+              <div className="text-xs text-gray-400 mt-0.5">{profile?.email}</div>
+            </div>
+            <button
+              onClick={() => {
+                if (editing) onProfileSave({ ...profile, name: name.trim() || profile.name });
+                setEditing((v) => !v);
+              }}
+              className="text-sm font-semibold px-3 py-1.5 rounded-xl"
+              style={{ color: theme.primary, background: theme.soft }}
+            >
+              {editing ? "บันทึก" : "แก้ไข"}
+            </button>
+          </div>
+
+          {uploading && <div className="text-xs text-gray-400 mt-2">กำลังอัปโหลดรูป...</div>}
+          {uploadError && <div className="text-xs text-red-500 mt-2">{uploadError}</div>}
+
+          {profile?.avatarDataUrl && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="text-xs font-medium text-gray-500 mb-2">ทรงกรอบรูป</div>
+              <div className="flex gap-2 mb-3">
+                {[
+                  { key: "circle", label: "วงกลม" },
+                  { key: "rounded", label: "มน" },
+                  { key: "square", label: "เหลี่ยม" },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => onProfileSave({ ...profile, avatarFrame: f.key })}
+                    className="flex-1 py-1.5 rounded-xl text-xs font-semibold border-2"
+                    style={{
+                      borderColor: theme.primary,
+                      color: (profile.avatarFrame || "circle") === f.key ? "white" : theme.primary,
+                      background: (profile.avatarFrame || "circle") === f.key ? theme.primary : "white",
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className="text-xs font-medium text-gray-500 mb-2">สีกรอบ</div>
+              <div className="flex gap-2">
+                {AVATAR_FRAME_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => onProfileSave({ ...profile, avatarFrameColor: c })}
+                    className="w-7 h-7 rounded-full"
+                    style={{
+                      background: c,
+                      border: (profile.avatarFrameColor || "#6C5CE7") === c ? "3px solid #111827" : "3px solid transparent",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="text-sm font-semibold text-gray-700 mb-3">🎨 ธีมสีแอป</div>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(THEMES).map(([key, t]) => (
+              <button key={key} onClick={() => onThemeChange(key)} className="flex flex-col items-center gap-1">
+                <div
+                  className="w-9 h-9 rounded-full"
+                  style={{
+                    background: `linear-gradient(135deg, ${t.primary}, ${t.dark})`,
+                    border: themeKey === key ? "3px solid #111827" : "3px solid transparent",
+                  }}
+                />
+                <span className="text-xs text-gray-400">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gray-700 text-sm font-semibold">
+            {notifications ? <Bell size={16} /> : <BellOff size={16} />}
+            การแจ้งเตือน
+          </div>
+          <button
+            onClick={onToggleNotifications}
+            className="w-11 h-6 rounded-full relative transition-colors"
+            style={{ background: notifications ? theme.primary : "#E5E7EB" }}
+          >
+            <span
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+              style={{ left: notifications ? 22 : 2 }}
+            />
+          </button>
+        </div>
+
+        <button
+          onClick={onLogout}
+          className="flex items-center justify-center gap-2 text-red-500 font-semibold py-3 rounded-2xl border border-red-100"
+        >
+          <LogOut size={16} /> ออกจากระบบ
+        </button>
+      </div>
+
+      <BottomNav current={current} onNavigate={onNavigate} theme={theme} />
+    </div>
+  );
+}
+
+/* ================================ App root ================================ */
+
+function DeadHootApp() {
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [themeKey, setThemeKey] = useState("purple");
+  const [notifications, setNotifications] = useState(true);
+
+  const [screen, setScreen] = useState("welcome");
+  const [editingTask, setEditingTask] = useState(null);
+  const [toast, setToast] = useState("");
+
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [signupError, setSignupError] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [otpInput, setOtpInput] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetPasswordError, setResetPasswordError] = useState("");
+
+  const theme = THEMES[themeKey];
+
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2000);
+  }, []);
+
+  // นับถอยหลังก่อนกดส่งรหัส OTP ซ้ำได้อีกครั้ง
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  useEffect(() => {
+    (async () => {
+      const savedEmail = getLocalEmail();
+      if (!savedEmail) {
+        setScreen("welcome");
+        setLoading(false);
+        return;
+      }
+      const p = await storageGet(profileKeyFor(savedEmail));
+      const d = await storageGet(dataKeyFor(savedEmail));
+      if (p && p.onboarded) {
+        setProfile(p);
+        setSubjects(d?.subjects || []);
+        setTasks(d?.tasks || []);
+        setThemeKey(d?.theme || "purple");
+        setNotifications(d?.notifications ?? true);
+        setScreen("home");
+      } else {
+        setScreen("welcome");
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const persistData = useCallback(
+    (patch) => {
+      const targetEmail = profile?.email || getLocalEmail();
+      if (!targetEmail) return;
+      const next = {
+        subjects: patch.subjects ?? subjects,
+        tasks: patch.tasks ?? tasks,
+        theme: patch.theme ?? themeKey,
+        notifications: patch.notifications ?? notifications,
+      };
+      storageSet(dataKeyFor(targetEmail), next);
+    },
+    [profile, subjects, tasks, themeKey, notifications]
+  );
+
+  const handleLogin = async () => {
+    if (!password) {
+      setLoginError("กรุณากรอกรหัสผ่าน");
+      return;
+    }
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!valid) {
+      setLoginError("กรุณากรอกอีเมลให้ถูกต้อง");
+      return;
+    }
+    setLoginError("");
+    setAuthLoading(true);
+    try {
+      const cleanEmail = email.trim();
+      const result = await callServer("loginUser", cleanEmail, password);
+      if (!result.success) {
+        setLoginError(result.message || "เข้าสู่ระบบไม่สำเร็จ");
+        return;
+      }
+      const d = await storageGet(dataKeyFor(cleanEmail));
+      setLocalEmail(cleanEmail);
+      setProfile(result.profile);
+      setSubjects(d?.subjects || []);
+      setTasks(d?.tasks || []);
+      setThemeKey(d?.theme || "purple");
+      setNotifications(d?.notifications ?? true);
+      setPassword("");
+      setScreen("home");
+    } catch (e) {
+      setLoginError("เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignupNext = async () => {
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!valid) {
+      setSignupError("กรุณากรอกอีเมลให้ถูกต้อง");
+      return;
+    }
+    if (password.length < 6) {
+      setSignupError("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setSignupError("รหัสผ่านทั้งสองช่องไม่ตรงกัน");
+      return;
+    }
+    setSignupError("");
+    setAuthLoading(true);
+    try {
+      const cleanEmail = email.trim();
+      const exists = await callServer("checkEmailExists", cleanEmail);
+      if (exists) {
+        setSignupError("อีเมลนี้เคยสมัครแล้ว กรุณาเข้าสู่ระบบแทน");
+        return;
+      }
+      await callServer("sendOtpEmail", cleanEmail);
+      setOtpInput("");
+      setOtpError("");
+      setResendCooldown(30);
+      setIsPasswordReset(false);
+      setScreen("otp");
+    } catch (e) {
+      setSignupError("ส่งอีเมลไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    try {
+      await callServer("sendOtpEmail", email.trim());
+      setOtpInput("");
+      setResendCooldown(30);
+      showToast("ส่งรหัสใหม่แล้ว เช็คอีเมลของคุณ");
+    } catch (e) {
+      showToast("ส่งไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setAuthLoading(true);
+    try {
+      const ok = await callServer("verifyOtpCode", email.trim(), otpInput);
+      if (!ok) {
+        setOtpError("รหัสไม่ถูกต้องหรือหมดอายุแล้ว");
+        return;
+      }
+      setOtpError("");
+      if (isPasswordReset) {
+        setNewPassword("");
+        setConfirmNewPassword("");
+        setResetPasswordError("");
+        setScreen("reset-password");
+      } else {
+        setNameInput("");
+        setNameError("");
+        setScreen("profile-setup");
+      }
+    } catch (e) {
+      setOtpError("ตรวจสอบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!valid) {
+      setLoginError("กรุณากรอกอีเมลก่อนกดลืมรหัสผ่าน");
+      return;
+    }
+    setLoginError("");
+    setAuthLoading(true);
+    try {
+      const cleanEmail = email.trim();
+      const exists = await callServer("checkEmailExists", cleanEmail);
+      if (!exists) {
+        setLoginError("ไม่พบบัญชีนี้");
+        return;
+      }
+      await callServer("sendOtpEmail", cleanEmail);
+      setOtpInput("");
+      setOtpError("");
+      setResendCooldown(30);
+      setIsPasswordReset(true);
+      setScreen("otp");
+    } catch (e) {
+      setLoginError("เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword.length < 6) {
+      setResetPasswordError("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setResetPasswordError("รหัสผ่านทั้งสองช่องไม่ตรงกัน");
+      return;
+    }
+    setResetPasswordError("");
+    setAuthLoading(true);
+    const cleanEmail = email.trim();
+    try {
+      const result = await callServer("resetPassword", cleanEmail, newPassword);
+      if (!result.success) {
+        setResetPasswordError(result.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ");
+        return;
+      }
+      const d = await storageGet(dataKeyFor(cleanEmail));
+      setLocalEmail(cleanEmail);
+      setProfile(result.profile);
+      setSubjects(d?.subjects || []);
+      setTasks(d?.tasks || []);
+      setThemeKey(d?.theme || "purple");
+      setNotifications(d?.notifications ?? true);
+      setIsPasswordReset(false);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPassword("");
+      showToast("ตั้งรหัสผ่านใหม่สำเร็จ");
+      setScreen("home");
+    } catch (e) {
+      setResetPasswordError("เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleFinishProfile = async () => {
+    if (!nameInput.trim()) {
+      setNameError("กรุณากรอกชื่อของคุณ");
+      return;
+    }
+    setNameError("");
+    setAuthLoading(true);
+    const cleanEmail = email.trim();
+    try {
+      const newProfile = await callServer("registerUser", cleanEmail, nameInput.trim(), password);
+      const seedSubjects = defaultSubjects();
+      const seedTasks = defaultTasks(seedSubjects);
+      await storageSet(dataKeyFor(cleanEmail), { subjects: seedSubjects, tasks: seedTasks, theme: themeKey, notifications: true });
+      setLocalEmail(cleanEmail);
+      setProfile(newProfile);
+      setSubjects(seedSubjects);
+      setTasks(seedTasks);
+      setPassword("");
+      setConfirmPassword("");
+      setScreen("home");
+    } catch (e) {
+      setNameError("สมัครสมาชิกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleToggleTask = (id) => {
+    const next = tasks.map((t) =>
+      t.id === id
+        ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : null }
+        : t
+    );
+    setTasks(next);
+    persistData({ tasks: next });
+  };
+
+  const handleDeleteTask = (id) => {
+    const next = tasks.filter((t) => t.id !== id);
+    setTasks(next);
+    persistData({ tasks: next });
+    showToast("ลบงานแล้ว");
+  };
+
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setScreen("add-task");
+  };
+
+  const handleSaveTask = (task) => {
+    const exists = tasks.some((t) => t.id === task.id);
+    const next = exists ? tasks.map((t) => (t.id === task.id ? task : t)) : [...tasks, task];
+    setTasks(next);
+    persistData({ tasks: next });
+    setEditingTask(null);
+    if (exists) {
+      showToast("แก้ไขงานแล้ว");
+      setScreen("home");
+    } else {
+      setScreen("result");
+    }
+  };
+
+  const handleSaveSubject = (subj) => {
+    const exists = subjects.some((s) => s.id === subj.id);
+    const next = exists ? subjects.map((s) => (s.id === subj.id ? subj : s)) : [...subjects, subj];
+    setSubjects(next);
+    persistData({ subjects: next });
+    showToast(exists ? "แก้ไขวิชาแล้ว" : "เพิ่มวิชาแล้ว");
+  };
+
+  const handleDeleteSubject = (id) => {
+    const nextSubjects = subjects.filter((s) => s.id !== id);
+    const nextTasks = tasks.filter((t) => t.subjectId !== id);
+    setSubjects(nextSubjects);
+    setTasks(nextTasks);
+    persistData({ subjects: nextSubjects, tasks: nextTasks });
+    showToast("ลบวิชาแล้ว");
+  };
+
+  const handleThemeChange = (key) => {
+    setThemeKey(key);
+    persistData({ theme: key });
+  };
+
+  const handleToggleNotifications = () => {
+    const next = !notifications;
+    setNotifications(next);
+    persistData({ notifications: next });
+  };
+
+  const handleProfileSave = async (p) => {
+    setProfile(p);
+    await storageSet(profileKeyFor(p.email), p);
+    showToast("บันทึกโปรไฟล์แล้ว");
+  };
+
+  const handleLogout = async () => {
+    // แค่ลืมอีเมลที่จำไว้ในเครื่องนี้ ข้อมูลในชีทของผู้ใช้ยังอยู่ครบ
+    // ล็อกอินด้วยอีเมลเดิมใหม่เมื่อไหร่ก็ได้ข้อมูลกลับคืนมาทั้งหมด
+    clearLocalEmail();
+    setProfile(null);
+    setSubjects([]);
+    setTasks([]);
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setNameInput("");
+    setScreen("welcome");
+  };
+
+  return (
+    <div className="phone-shell w-full min-h-screen flex items-center justify-center py-6" style={{ background: "#F3F1FB" }}>
+      <div
+        className="phone-frame relative bg-white flex flex-col"
+        style={{ width: 390, height: 844, borderRadius: 28, boxShadow: "0 20px 60px rgba(76,63,207,0.15)", overflow: "hidden" }}
+      >
+        <PhoneClock />
+        <div className="flex-1 min-h-0 flex flex-col pb-1">
+          {loading && (
+            <div className="flex-1 flex items-center justify-center">
+              <OwlAvatar mood="neutral" size={64} />
+            </div>
+          )}
+
+          {!loading && screen === "welcome" && (
+            <WelcomeScreen theme={theme} onLogin={() => { setLoginError(""); setPassword(""); setScreen("login"); }} onSignup={() => { setSignupError(""); setPassword(""); setConfirmPassword(""); setScreen("signup"); }} />
+          )}
+
+          {!loading && screen === "login" && (
+            <LoginScreen
+              theme={theme}
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              onSubmit={handleLogin}
+              onBack={() => setScreen("welcome")}
+              onForgotPassword={handleForgotPassword}
+              error={loginError}
+              loading={authLoading}
+            />
+          )}
+
+          {!loading && screen === "reset-password" && (
+            <ResetPasswordScreen
+              theme={theme}
+              email={email}
+              password={newPassword}
+              setPassword={setNewPassword}
+              confirmPassword={confirmNewPassword}
+              setConfirmPassword={setConfirmNewPassword}
+              onSubmit={handleResetPassword}
+              error={resetPasswordError}
+              loading={authLoading}
+            />
+          )}
+
+          {!loading && screen === "signup" && (
+            <SignupEmailScreen
+              theme={theme}
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              confirmPassword={confirmPassword}
+              setConfirmPassword={setConfirmPassword}
+              onNext={handleSignupNext}
+              onBack={() => setScreen("welcome")}
+              error={signupError}
+              loading={authLoading}
+            />
+          )}
+
+          {!loading && screen === "otp" && (
+            <OtpScreen
+              theme={theme}
+              email={email}
+              otpInput={otpInput}
+              setOtpInput={setOtpInput}
+              onVerify={handleVerifyOtp}
+              onResend={handleResendOtp}
+              error={otpError}
+              loading={authLoading}
+              resendCooldown={resendCooldown}
+            />
+          )}
+
+          {!loading && screen === "profile-setup" && (
+            <ProfileSetupScreen theme={theme} name={nameInput} setName={setNameInput} onFinish={handleFinishProfile} error={nameError} loading={authLoading} />
+          )}
+
+          {!loading && screen === "home" && (
+            <HomeScreen
+              theme={theme}
+              profile={profile}
+              tasks={tasks}
+              subjects={subjects}
+              onToggle={handleToggleTask}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onAdd={() => {
+                setEditingTask(null);
+                setScreen("add-task");
+              }}
+              current="home"
+              onNavigate={setScreen}
+            />
+          )}
+
+          {!loading && screen === "add-task" && (
+            <AddTaskScreen
+              theme={theme}
+              subjects={subjects}
+              initial={editingTask}
+              onSave={handleSaveTask}
+              onCancel={() => {
+                setEditingTask(null);
+                setScreen("home");
+              }}
+            />
+          )}
+
+          {!loading && screen === "result" && (
+            <ResultScreen
+              theme={theme}
+              tasks={tasks}
+              subjects={subjects}
+              onViewCalendar={() => setScreen("calendar")}
+              onViewProgress={() => setScreen("progress")}
+              onBackHome={() => setScreen("home")}
+            />
+          )}
+
+          {!loading && screen === "calendar" && (
+            <CalendarScreen
+              theme={theme}
+              tasks={tasks}
+              subjects={subjects}
+              onToggle={handleToggleTask}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              current="calendar"
+              onNavigate={setScreen}
+            />
+          )}
+
+          {!loading && screen === "subjects" && (
+            <SubjectsScreen
+              theme={theme}
+              subjects={subjects}
+              tasks={tasks}
+              onSave={handleSaveSubject}
+              onDelete={handleDeleteSubject}
+              current="subjects"
+              onNavigate={setScreen}
+            />
+          )}
+
+          {!loading && screen === "progress" && (
+            <ProgressScreen theme={theme} tasks={tasks} subjects={subjects} current="progress" onNavigate={setScreen} />
+          )}
+
+          {!loading && screen === "settings" && (
+            <SettingsScreen
+              theme={theme}
+              themeKey={themeKey}
+              onThemeChange={handleThemeChange}
+              profile={profile}
+              onProfileSave={handleProfileSave}
+              notifications={notifications}
+              onToggleNotifications={handleToggleNotifications}
+              onLogout={handleLogout}
+              current="settings"
+              onNavigate={setScreen}
+            />
+          )}
+
+        </div>
+
+        <Toast message={toast} />
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(<DeadHootApp />);
+</script>
+</body>
+</html>
