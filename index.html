@@ -49,6 +49,22 @@
   @media (max-width: 480px) {
     #scrollFab { display: none !important; }
   }
+
+  /* โหมดมืด: ครอบสี Tailwind ที่ใช้ทั่วแอปโดยไม่ต้องแก้ทีละ component */
+  .phone-frame.dark { background-color: #15161c !important; }
+  .phone-frame.dark .bg-white { background-color: #21232b !important; }
+  .phone-frame.dark .bg-gray-50 { background-color: #1a1b22 !important; }
+  .phone-frame.dark .bg-gray-100 { background-color: #2a2c36 !important; }
+  .phone-frame.dark .text-gray-800 { color: #f0f0f3 !important; }
+  .phone-frame.dark .text-gray-700 { color: #d7d8de !important; }
+  .phone-frame.dark .text-gray-600 { color: #c3c4cc !important; }
+  .phone-frame.dark .text-gray-500 { color: #9a9ba5 !important; }
+  .phone-frame.dark .text-gray-400 { color: #7d7e8a !important; }
+  .phone-frame.dark .text-gray-300 { color: #5c5d68 !important; }
+  .phone-frame.dark .border-gray-100 { border-color: #33343e !important; }
+  .phone-frame.dark .border-gray-200 { border-color: #3d3e49 !important; }
+  .phone-frame.dark input, .phone-frame.dark select, .phone-frame.dark textarea { color: #f0f0f3 !important; background-color: transparent !important; }
+  .phone-frame.dark ::placeholder { color: #6b6c78 !important; }
 </style>
 </head>
 <body>
@@ -108,6 +124,16 @@ const THEMES = {
   orange: { primary: "#F0813C", dark: "#C9601F", soft: "#FDECE0", label: "ส้ม" },
   teal: { primary: "#17A398", dark: "#0F7A70", soft: "#E1F5F2", label: "มิ้นท์" },
   slate: { primary: "#475569", dark: "#1E293B", soft: "#E9EDF2", label: "เทาเข้ม" },
+  red: { primary: "#E14848", dark: "#B32A2A", soft: "#FCE7E7", label: "แดง" },
+  yellow: { primary: "#D9A61E", dark: "#A6790F", soft: "#FBF1DC", label: "เหลือง" },
+  indigo: { primary: "#5B5FC7", dark: "#3E4199", soft: "#EAEAFB", label: "คราม" },
+  cyan: { primary: "#22A6C9", dark: "#157A96", soft: "#E1F5FA", label: "ฟ้าอมเขียว" },
+  lime: { primary: "#7CB342", dark: "#558527", soft: "#EEF6E4", label: "เขียวมะนาว" },
+  brown: { primary: "#8D6748", dark: "#61452F", soft: "#EEE6DD", label: "น้ำตาล" },
+  fuchsia: { primary: "#C6479A", dark: "#96326F", soft: "#F9E7F2", label: "บานเย็น" },
+  navy: { primary: "#2E4374", dark: "#1B2A4D", soft: "#E4E9F3", label: "กรมท่า" },
+  coral: { primary: "#EA7666", dark: "#C1503F", soft: "#FCEAE6", label: "ปะการัง" },
+  olive: { primary: "#7A7D3C", dark: "#565927", soft: "#EFEFE0", label: "มะกอก" },
 };
 
 const ACCENT = "#FF6B55"; // สีปุ่ม + (คงที่ทุกธีม)
@@ -243,20 +269,30 @@ function clearLocalEmail() {
   }
 }
 
-// เรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ (Code.gs) ข้ามโดเมนผ่าน fetch()
-// ใช้ Content-Type: text/plain เพื่อให้เบราว์เซอร์มองว่าเป็น "simple request"
-// จะได้ไม่ต้องส่ง CORS preflight (OPTIONS) ซึ่ง Apps Script Web App จัดการไม่ได้
+// เรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ (Code.gs) ข้ามโดเมนผ่าน fetch() แบบ GET
+// เหตุผลที่ใช้ GET ไม่ใช้ POST: Apps Script Web App จะแนบ Access-Control-Allow-Origin
+// ให้เฉพาะ response ของ GET เท่านั้น ถ้าใช้ POST เบราว์เซอร์จะยิงถึงเซิร์ฟเวอร์จริง
+// (เขียนข้อมูลสำเร็จ) แต่จะบล็อกไม่ให้ฝั่งเว็บอ่านผลลัพธ์กลับมา ทำให้ดูเหมือน "เชื่อมต่อไม่สำเร็จ"
 async function callServer(fnName, ...args) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ fn: fnName, args: args }),
-  });
+  const url = `${API_URL}?fn=${encodeURIComponent(fnName)}&args=${encodeURIComponent(JSON.stringify(args))}`;
+  const res = await fetch(url);
   const json = await res.json();
   if (json.error) {
     throw new Error(json.error);
   }
   return json.result;
+}
+
+// ยิงเขียนข้อมูลแบบ POST + no-cors (ใช้กับข้อมูลก้อนใหญ่ เช่น รูปโปรไฟล์ ที่ยัดใน URL ของ GET ไม่พอ)
+// โหมด no-cors ทำให้อ่าน response กลับไม่ได้ แต่คำขอจะไปถึงเซิร์ฟเวอร์และเขียนข้อมูลสำเร็จจริง
+async function callServerWrite(fnName, ...args) {
+  await fetch(API_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ fn: fnName, args: args }),
+  });
+  return true;
 }
 
 function storageGet(key) {
@@ -269,7 +305,7 @@ function storageGet(key) {
 }
 
 function storageSet(key, value) {
-  return callServer("setValue", key, JSON.stringify(value))
+  return callServerWrite("setValue", key, JSON.stringify(value))
     .then(() => true)
     .catch((err) => {
       console.error("storage set failed", err);
@@ -550,6 +586,7 @@ function TaskCard({ task, subject, onToggle, onEdit, onDelete }) {
         </div>
       </button>
       <StatusChip status={status} />
+      <ChevronRight size={16} className="text-gray-300 shrink-0" />
       <button
         onClick={() => onDelete(task.id)}
         className="text-gray-300 hover:text-red-400 p-1"
@@ -857,7 +894,7 @@ function HomeScreen({ theme, profile, tasks, subjects, onToggle, onEdit, onDelet
       <GradientHeader
         theme={theme}
         title={`สวัสดี ${profile?.name || "เพื่อน"} 👋`}
-        subtitle={`วันนี้มีงาน ${incomplete.length} ชิ้นรอคุณอยู่`}
+        subtitle={`มีงานค้าง ${incomplete.length} ชิ้น`}
         mood="grumpy"
         profile={profile}
       />
@@ -923,6 +960,7 @@ function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
   const [estimatedHours, setEstimatedHours] = useState(initial?.estimatedHours ?? 1);
   const [remind, setRemind] = useState(initial?.remind || [1]);
   const [error, setError] = useState("");
+  const scrollRef = useRef(null);
 
   const toggleRemind = (d) => {
     setRemind((r) => (r.includes(d) ? r.filter((x) => x !== d) : [...r, d].sort((a, b) => b - a)));
@@ -931,12 +969,20 @@ function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
   const handleSave = () => {
     if (!title.trim()) {
       setError("กรุณากรอกชื่องาน");
+      scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     if (!subjectId) {
       setError("กรุณาเลือกวิชา");
+      scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+    if (Number(estimatedHours) < 0 || Number.isNaN(Number(estimatedHours))) {
+      setError("เวลาที่คาดว่าจะใช้ต้องเป็น 0 หรือมากกว่า");
+      scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setError("");
     onSave({
       id: initial?.id || uid(),
       title: title.trim(),
@@ -968,12 +1014,19 @@ function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
         <OwlAvatar mood="happy" size={56} />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 mt-4 flex flex-col gap-3 pb-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 mt-4 flex flex-col gap-3 pb-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl p-3">{error}</div>
+        )}
+
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <label className="text-sm font-medium text-gray-500">📝 ชื่องาน</label>
           <input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              if (error) setError("");
+            }}
             placeholder="รายงานวิเคราะห์ข้อมูล..."
             className="w-full mt-1 text-gray-800 focus:outline-none"
           />
@@ -983,7 +1036,10 @@ function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
           <label className="text-sm font-medium text-gray-500">📖 วิชา</label>
           <select
             value={subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
+            onChange={(e) => {
+              setSubjectId(e.target.value);
+              if (error) setError("");
+            }}
             className="w-full mt-1 text-gray-800 bg-transparent focus:outline-none"
           >
             {subjects.map((s) => (
@@ -1017,7 +1073,7 @@ function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
 
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <label className="text-sm font-medium text-gray-500">⭐ ความสำคัญ</label>
-          <div className="flex gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2">
             {[1, 2, 3].map((lvl) => (
               <button
                 key={lvl}
@@ -1030,6 +1086,9 @@ function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
                 aria-label={`ระดับความสำคัญ ${lvl}`}
               />
             ))}
+            <span className="text-xs text-gray-400 ml-2">
+              {importance === 1 ? "ต่ำ" : importance === 2 ? "ปานกลาง" : "สูง"}
+            </span>
           </div>
         </div>
 
@@ -1064,8 +1123,6 @@ function AddTaskScreen({ theme, subjects, initial, onSave, onCancel }) {
             ))}
           </div>
         </div>
-
-        {error && <div className="text-xs text-red-500 text-center">{error}</div>}
       </div>
 
       <div className="px-4 pb-5 pt-2">
@@ -1192,6 +1249,7 @@ function CalendarScreen({ theme, tasks, subjects, onToggle, onEdit, onDelete, cu
     if (m > 11) { m = 0; y += 1; }
     setViewMonth(m);
     setViewYear(y);
+    setSelected(`${y}-${pad2(m + 1)}-01`); // กันไม่ให้ panel ล่างค้างวันที่ของเดือนก่อนหน้า
   };
 
   const subjectById = Object.fromEntries(subjects.map((s) => [s.id, s]));
@@ -1254,7 +1312,7 @@ function CalendarScreen({ theme, tasks, subjects, onToggle, onEdit, onDelete, cu
         </div>
         <div className="flex flex-col gap-2">
           {selectedTasks.length === 0 && (
-            <div className="text-sm text-gray-400 text-center py-6">ไม่มีงานในวันนี้</div>
+            <div className="text-sm text-gray-400 text-center py-6">ไม่มีงานในวันที่เลือก</div>
           )}
           {selectedTasks.map((t) => (
             <TaskCard
@@ -1276,7 +1334,7 @@ function CalendarScreen({ theme, tasks, subjects, onToggle, onEdit, onDelete, cu
 
 /* ------------------------------ Subjects ------------------------------ */
 
-function SubjectModal({ theme, initial, onSave, onClose }) {
+function SubjectModal({ theme, initial, existingSubjects, onSave, onClose }) {
   const [code, setCode] = useState(initial?.code || "");
   const [name, setName] = useState(initial?.name || "");
   const [color, setColor] = useState(initial?.color || SUBJECT_PALETTE[0]);
@@ -1298,6 +1356,13 @@ function SubjectModal({ theme, initial, onSave, onClose }) {
   const handleSave = () => {
     if (!code.trim() || !name.trim()) {
       setError("กรุณากรอกรหัสและชื่อวิชา");
+      return;
+    }
+    const isDuplicate = (existingSubjects || []).some(
+      (s) => s.id !== initial?.id && s.code.trim().toLowerCase() === code.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      setError("มีรหัสวิชานี้อยู่แล้ว กรุณาใช้รหัสอื่น");
       return;
     }
     const subj = { id: initial?.id || uid(), code: code.trim(), name: name.trim(), color };
@@ -1416,6 +1481,7 @@ function SubjectsScreen({ theme, subjects, tasks, onSave, onDelete, current, onN
         <SubjectModal
           theme={theme}
           initial={editing}
+          existingSubjects={subjects}
           onClose={() => setModalOpen(false)}
           onSave={(subj) => {
             onSave(subj);
@@ -1585,6 +1651,8 @@ function SettingsScreen({
   onProfileSave,
   notifications,
   onToggleNotifications,
+  darkMode,
+  onToggleDarkMode,
   onLogout,
   current,
   onNavigate,
@@ -1722,19 +1790,40 @@ function SettingsScreen({
           </div>
         </div>
 
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-700 text-sm font-semibold">
+              {notifications ? <Bell size={16} /> : <BellOff size={16} />}
+              การแจ้งเตือน
+            </div>
+            <button
+              onClick={onToggleNotifications}
+              className="w-11 h-6 rounded-full relative transition-colors"
+              style={{ background: notifications ? theme.primary : "#E5E7EB" }}
+            >
+              <span
+                className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                style={{ left: notifications ? 22 : 2 }}
+              />
+            </button>
+          </div>
+          <div className="text-xs text-gray-400 mt-2">
+            ต้องเปิดแท็บ/เบราว์เซอร์นี้ทิ้งไว้ถึงจะเด้งแจ้งเตือนได้ (ปิดเบราว์เซอร์ไปเลยจะไม่แจ้งเตือน)
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-gray-700 text-sm font-semibold">
-            {notifications ? <Bell size={16} /> : <BellOff size={16} />}
-            การแจ้งเตือน
+            {darkMode ? "🌙" : "☀️"} โหมดมืด
           </div>
           <button
-            onClick={onToggleNotifications}
+            onClick={onToggleDarkMode}
             className="w-11 h-6 rounded-full relative transition-colors"
-            style={{ background: notifications ? theme.primary : "#E5E7EB" }}
+            style={{ background: darkMode ? theme.primary : "#E5E7EB" }}
           >
             <span
               className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
-              style={{ left: notifications ? 22 : 2 }}
+              style={{ left: darkMode ? 22 : 2 }}
             />
           </button>
         </div>
@@ -1761,6 +1850,7 @@ function DeadHootApp() {
   const [tasks, setTasks] = useState([]);
   const [themeKey, setThemeKey] = useState("purple");
   const [notifications, setNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   const [screen, setScreen] = useState("welcome");
   const [editingTask, setEditingTask] = useState(null);
@@ -1790,6 +1880,39 @@ function DeadHootApp() {
     setTimeout(() => setToast(""), 2000);
   }, []);
 
+  // เช็คงานใกล้ครบกำหนดทุก 1 นาที แล้วส่ง Notification จริงเข้าอุปกรณ์
+  // (ทำงานได้เฉพาะตอนเปิดแท็บ/เบราว์เซอร์นี้อยู่ — ปิดเบราว์เซอร์ไปเลยจะไม่มีการแจ้งเตือน
+  //  เพราะการแจ้งเตือนแบบปิดแอปสนิทแล้วยังเด้งได้ต้องมี Push Server แยกต่างหาก)
+  useEffect(() => {
+    if (!notifications || typeof Notification === "undefined") return;
+    const checkReminders = () => {
+      if (Notification.permission !== "granted") return;
+      const now = new Date();
+      tasks.forEach((t) => {
+        if (t.completed) return;
+        const due = new Date(`${t.dueDate}T${t.dueTime || "23:59"}:00`);
+        const diffDays = (due - now) / (1000 * 60 * 60 * 24);
+        (t.remind || []).forEach((d) => {
+          if (diffDays <= d && diffDays > 0) {
+            const notifiedKey = `deadhoot_notified:${t.id}:${d}`;
+            if (localStorage.getItem(notifiedKey)) return;
+            try {
+              new Notification("🦉 DeadHoot เตือนความจำ", {
+                body: `"${t.title}" ใกล้ครบกำหนดแล้ว (เหลืออีก ${d} วัน)`,
+              });
+              localStorage.setItem(notifiedKey, "1");
+            } catch (e) {
+              console.error("แจ้งเตือนไม่สำเร็จ", e);
+            }
+          }
+        });
+      });
+    };
+    checkReminders();
+    const interval = setInterval(checkReminders, 60000);
+    return () => clearInterval(interval);
+  }, [tasks, notifications]);
+
   // นับถอยหลังก่อนกดส่งรหัส OTP ซ้ำได้อีกครั้ง
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -1813,6 +1936,7 @@ function DeadHootApp() {
         setTasks(d?.tasks || []);
         setThemeKey(d?.theme || "purple");
         setNotifications(d?.notifications ?? true);
+        setDarkMode(d?.darkMode ?? false);
         setScreen("home");
       } else {
         setScreen("welcome");
@@ -1830,10 +1954,11 @@ function DeadHootApp() {
         tasks: patch.tasks ?? tasks,
         theme: patch.theme ?? themeKey,
         notifications: patch.notifications ?? notifications,
+        darkMode: patch.darkMode ?? darkMode,
       };
       storageSet(dataKeyFor(targetEmail), next);
     },
-    [profile, subjects, tasks, themeKey, notifications]
+    [profile, subjects, tasks, themeKey, notifications, darkMode]
   );
 
   const handleLogin = async () => {
@@ -1862,6 +1987,7 @@ function DeadHootApp() {
       setTasks(d?.tasks || []);
       setThemeKey(d?.theme || "purple");
       setNotifications(d?.notifications ?? true);
+        setDarkMode(d?.darkMode ?? false);
       setPassword("");
       setScreen("home");
     } catch (e) {
@@ -1998,6 +2124,7 @@ function DeadHootApp() {
       setTasks(d?.tasks || []);
       setThemeKey(d?.theme || "purple");
       setNotifications(d?.notifications ?? true);
+        setDarkMode(d?.darkMode ?? false);
       setIsPasswordReset(false);
       setNewPassword("");
       setConfirmNewPassword("");
@@ -2049,6 +2176,7 @@ function DeadHootApp() {
   };
 
   const handleDeleteTask = (id) => {
+    if (!window.confirm("ต้องการลบงานนี้ใช่หรือไม่? เมื่อลบแล้วจะกู้คืนไม่ได้")) return;
     const next = tasks.filter((t) => t.id !== id);
     setTasks(next);
     persistData({ tasks: next });
@@ -2076,13 +2204,21 @@ function DeadHootApp() {
 
   const handleSaveSubject = (subj) => {
     const exists = subjects.some((s) => s.id === subj.id);
+    const duplicate = subjects.some(
+      (s) => s.id !== subj.id && s.code.trim().toLowerCase() === subj.code.trim().toLowerCase()
+    );
+    if (duplicate) {
+      return "มีรหัสวิชานี้อยู่แล้ว กรุณาใช้รหัสอื่น";
+    }
     const next = exists ? subjects.map((s) => (s.id === subj.id ? subj : s)) : [...subjects, subj];
     setSubjects(next);
     persistData({ subjects: next });
     showToast(exists ? "แก้ไขวิชาแล้ว" : "เพิ่มวิชาแล้ว");
+    return null;
   };
 
   const handleDeleteSubject = (id) => {
+    if (!window.confirm("ต้องการลบวิชานี้ใช่หรือไม่? งานที่ผูกกับวิชานี้จะถูกลบไปด้วย")) return;
     const nextSubjects = subjects.filter((s) => s.id !== id);
     const nextTasks = tasks.filter((t) => t.subjectId !== id);
     setSubjects(nextSubjects);
@@ -2096,10 +2232,28 @@ function DeadHootApp() {
     persistData({ theme: key });
   };
 
-  const handleToggleNotifications = () => {
+  const handleToggleNotifications = async () => {
     const next = !notifications;
+    if (next && typeof Notification !== "undefined") {
+      if (Notification.permission === "default") {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") {
+          showToast("ต้องอนุญาตการแจ้งเตือนในเบราว์เซอร์ก่อนถึงจะใช้งานได้");
+          return;
+        }
+      } else if (Notification.permission === "denied") {
+        showToast("การแจ้งเตือนถูกปิดไว้ในเบราว์เซอร์ กรุณาไปเปิดในตั้งค่าเบราว์เซอร์ก่อน");
+        return;
+      }
+    }
     setNotifications(next);
     persistData({ notifications: next });
+  };
+
+  const handleToggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    persistData({ darkMode: next });
   };
 
   const handleProfileSave = async (p) => {
@@ -2125,7 +2279,7 @@ function DeadHootApp() {
   return (
     <div className="phone-shell w-full min-h-screen flex items-center justify-center py-6" style={{ background: "#F3F1FB" }}>
       <div
-        className="phone-frame relative bg-white flex flex-col"
+        className={`phone-frame relative bg-white flex flex-col${darkMode ? " dark" : ""}`}
         style={{ width: 390, height: 844, borderRadius: 28, boxShadow: "0 20px 60px rgba(76,63,207,0.15)", overflow: "hidden" }}
       >
         <PhoneClock />
@@ -2283,6 +2437,8 @@ function DeadHootApp() {
               onProfileSave={handleProfileSave}
               notifications={notifications}
               onToggleNotifications={handleToggleNotifications}
+              darkMode={darkMode}
+              onToggleDarkMode={handleToggleDarkMode}
               onLogout={handleLogout}
               current="settings"
               onNavigate={setScreen}
