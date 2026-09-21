@@ -8,6 +8,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; height: auto; min-height: 100%; }
   body { overflow-y: auto; background: #F3F1FB; }
@@ -65,6 +68,14 @@
   .phone-frame.dark .border-gray-200 { border-color: #3d3e49 !important; }
   .phone-frame.dark input, .phone-frame.dark select, .phone-frame.dark textarea { color: #f0f0f3 !important; background-color: transparent !important; }
   .phone-frame.dark ::placeholder { color: #6b6c78 !important; }
+
+  /* Polish ให้ดูทันสมัย-มินิมอลขึ้น: เงานุ่มแทนเส้นขอบหนักๆ + ปุ่มมี feedback ตอนกด */
+  .phone-frame .border-gray-100 { border-color: transparent !important; box-shadow: 0 1px 3px rgba(17,24,39,0.06), 0 1px 2px rgba(17,24,39,0.04); }
+  .phone-frame.dark .border-gray-100 { box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .phone-frame button { transition: transform 0.12s ease, opacity 0.12s ease; }
+  .phone-frame button:active { transform: scale(0.96); }
+  .phone-frame input, .phone-frame select { transition: box-shadow 0.15s ease; }
+  .phone-frame input:focus, .phone-frame select:focus { box-shadow: 0 0 0 3px rgba(108,92,231,0.15); border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -117,26 +128,82 @@ function RefreshCw(props) { return <Icon {...props}><polyline points="23 4 23 10
 /* ---------------------------- ค่าคงที่ / ธีมสี ---------------------------- */
 
 const THEMES = {
-  purple: { primary: "#6C5CE7", dark: "#4A3FCF", soft: "#EFECFE", label: "ม่วง" },
-  blue: { primary: "#3E8FE0", dark: "#2A63A8", soft: "#E8F1FC", label: "ฟ้า" },
-  green: { primary: "#2FAE72", dark: "#1F7A50", soft: "#E6F7EE", label: "เขียว" },
-  pink: { primary: "#E0609E", dark: "#A83D71", soft: "#FCE9F1", label: "ชมพู" },
-  orange: { primary: "#F0813C", dark: "#C9601F", soft: "#FDECE0", label: "ส้ม" },
-  teal: { primary: "#17A398", dark: "#0F7A70", soft: "#E1F5F2", label: "มิ้นท์" },
-  slate: { primary: "#475569", dark: "#1E293B", soft: "#E9EDF2", label: "เทาเข้ม" },
-  red: { primary: "#E14848", dark: "#B32A2A", soft: "#FCE7E7", label: "แดง" },
-  yellow: { primary: "#D9A61E", dark: "#A6790F", soft: "#FBF1DC", label: "เหลือง" },
-  indigo: { primary: "#5B5FC7", dark: "#3E4199", soft: "#EAEAFB", label: "คราม" },
-  cyan: { primary: "#22A6C9", dark: "#157A96", soft: "#E1F5FA", label: "ฟ้าอมเขียว" },
-  lime: { primary: "#7CB342", dark: "#558527", soft: "#EEF6E4", label: "เขียวมะนาว" },
-  brown: { primary: "#8D6748", dark: "#61452F", soft: "#EEE6DD", label: "น้ำตาล" },
-  fuchsia: { primary: "#C6479A", dark: "#96326F", soft: "#F9E7F2", label: "บานเย็น" },
-  navy: { primary: "#2E4374", dark: "#1B2A4D", soft: "#E4E9F3", label: "กรมท่า" },
-  coral: { primary: "#EA7666", dark: "#C1503F", soft: "#FCEAE6", label: "ปะการัง" },
-  olive: { primary: "#7A7D3C", dark: "#565927", soft: "#EFEFE0", label: "มะกอก" },
+  c01: { primary: "#D44949", dark: "#9D2525", soft: "#FAE6E6", label: "แดง" },
+  c02: { primary: "#D45649", dark: "#9D3025", soft: "#FAE8E6", label: "แดง 2" },
+  c03: { primary: "#D46349", dark: "#9D3B25", soft: "#FAE9E6", label: "แดง 3" },
+  c04: { primary: "#D47049", dark: "#9D4725", soft: "#FAEBE6", label: "ส้มแดง" },
+  c05: { primary: "#D47D49", dark: "#9D5225", soft: "#FAEDE6", label: "ส้มแดง 2" },
+  c06: { primary: "#D48A49", dark: "#9D5D25", soft: "#FAEFE6", label: "ส้มแดง 3" },
+  c07: { primary: "#D49749", dark: "#9D6825", soft: "#FAF1E6", label: "ส้มแดง 4" },
+  c08: { primary: "#D4A549", dark: "#9D7425", soft: "#FAF3E6", label: "ส้ม" },
+  c09: { primary: "#D4B249", dark: "#9D7F25", soft: "#FAF5E6", label: "ส้ม 2" },
+  c10: { primary: "#D4BF49", dark: "#9D8A25", soft: "#FAF7E6", label: "เหลืองส้ม" },
+  c11: { primary: "#D4CC49", dark: "#9D9525", soft: "#FAF8E6", label: "เหลืองส้ม 2" },
+  c12: { primary: "#D0D449", dark: "#999D25", soft: "#F9FAE6", label: "เหลืองส้ม 3" },
+  c13: { primary: "#C3D449", dark: "#8E9D25", soft: "#F7FAE6", label: "เหลือง" },
+  c14: { primary: "#B6D449", dark: "#839D25", soft: "#F5FAE6", label: "เหลือง 2" },
+  c15: { primary: "#A9D449", dark: "#779D25", soft: "#F3FAE6", label: "เหลือง 3" },
+  c16: { primary: "#9CD449", dark: "#6C9D25", soft: "#F2FAE6", label: "เหลือง 4" },
+  c17: { primary: "#8FD449", dark: "#619D25", soft: "#F0FAE6", label: "เขียวมะนาว" },
+  c18: { primary: "#82D449", dark: "#569D25", soft: "#EEFAE6", label: "เขียวมะนาว 2" },
+  c19: { primary: "#75D449", dark: "#4A9D25", soft: "#ECFAE6", label: "เขียวมะนาว 3" },
+  c20: { primary: "#68D449", dark: "#3F9D25", soft: "#EAFAE6", label: "เขียวมะนาว 4" },
+  c21: { primary: "#5BD449", dark: "#349D25", soft: "#E8FAE6", label: "เขียว" },
+  c22: { primary: "#4ED449", dark: "#299D25", soft: "#E6FAE6", label: "เขียว 2" },
+  c23: { primary: "#49D452", dark: "#259D2C", soft: "#E6FAE7", label: "เขียว 3" },
+  c24: { primary: "#49D45F", dark: "#259D38", soft: "#E6FAE9", label: "เขียว 4" },
+  c25: { primary: "#49D46C", dark: "#259D43", soft: "#E6FAEB", label: "เขียว 5" },
+  c26: { primary: "#49D479", dark: "#259D4E", soft: "#E6FAED", label: "เขียวมิ้นท์" },
+  c27: { primary: "#49D486", dark: "#259D59", soft: "#E6FAEE", label: "เขียวมิ้นท์ 2" },
+  c28: { primary: "#49D493", dark: "#259D65", soft: "#E6FAF0", label: "เขียวมิ้นท์ 3" },
+  c29: { primary: "#49D4A0", dark: "#259D70", soft: "#E6FAF2", label: "เขียวมิ้นท์ 4" },
+  c30: { primary: "#49D4AD", dark: "#259D7B", soft: "#E6FAF4", label: "เขียวมิ้นท์ 5" },
+  c31: { primary: "#49D4BA", dark: "#259D86", soft: "#E6FAF6", label: "ฟ้าอมเขียว" },
+  c32: { primary: "#49D4C7", dark: "#259D92", soft: "#E6FAF8", label: "ฟ้าอมเขียว 2" },
+  c33: { primary: "#49D4D4", dark: "#259D9D", soft: "#E6FAFA", label: "ฟ้าอมเขียว 3" },
+  c34: { primary: "#49C7D4", dark: "#25929D", soft: "#E6F8FA", label: "ฟ้า" },
+  c35: { primary: "#49BAD4", dark: "#25869D", soft: "#E6F6FA", label: "ฟ้า 2" },
+  c36: { primary: "#49ADD4", dark: "#257B9D", soft: "#E6F4FA", label: "ฟ้า 3" },
+  c37: { primary: "#49A0D4", dark: "#25709D", soft: "#E6F2FA", label: "ฟ้า 4" },
+  c38: { primary: "#4993D4", dark: "#25659D", soft: "#E6F0FA", label: "ฟ้าน้ำเงิน" },
+  c39: { primary: "#4986D4", dark: "#25599D", soft: "#E6EEFA", label: "ฟ้าน้ำเงิน 2" },
+  c40: { primary: "#4979D4", dark: "#254E9D", soft: "#E6EDFA", label: "ฟ้าน้ำเงิน 3" },
+  c41: { primary: "#496CD4", dark: "#25439D", soft: "#E6EBFA", label: "ฟ้าน้ำเงิน 4" },
+  c42: { primary: "#495FD4", dark: "#25389D", soft: "#E6E9FA", label: "น้ำเงิน" },
+  c43: { primary: "#4952D4", dark: "#252C9D", soft: "#E6E7FA", label: "น้ำเงิน 2" },
+  c44: { primary: "#4E49D4", dark: "#29259D", soft: "#E6E6FA", label: "น้ำเงิน 3" },
+  c45: { primary: "#5B49D4", dark: "#34259D", soft: "#E8E6FA", label: "น้ำเงิน 4" },
+  c46: { primary: "#6849D4", dark: "#3F259D", soft: "#EAE6FA", label: "น้ำเงิน 5" },
+  c47: { primary: "#7549D4", dark: "#4A259D", soft: "#ECE6FA", label: "คราม" },
+  c48: { primary: "#8249D4", dark: "#56259D", soft: "#EEE6FA", label: "คราม 2" },
+  c49: { primary: "#8F49D4", dark: "#61259D", soft: "#F0E6FA", label: "คราม 3" },
+  c50: { primary: "#9C49D4", dark: "#6C259D", soft: "#F2E6FA", label: "ม่วง" },
+  c51: { primary: "#A949D4", dark: "#77259D", soft: "#F3E6FA", label: "ม่วง 2" },
+  c52: { primary: "#B649D4", dark: "#83259D", soft: "#F5E6FA", label: "ม่วง 3" },
+  c53: { primary: "#C349D4", dark: "#8E259D", soft: "#F7E6FA", label: "ม่วง 4" },
+  c54: { primary: "#D049D4", dark: "#99259D", soft: "#F9E6FA", label: "บานเย็น" },
+  c55: { primary: "#D449CC", dark: "#9D2595", soft: "#FAE6F8", label: "บานเย็น 2" },
+  c56: { primary: "#D449BF", dark: "#9D258A", soft: "#FAE6F7", label: "บานเย็น 3" },
+  c57: { primary: "#D449B2", dark: "#9D257F", soft: "#FAE6F5", label: "ชมพูเข้ม" },
+  c58: { primary: "#D449A5", dark: "#9D2574", soft: "#FAE6F3", label: "ชมพูเข้ม 2" },
+  c59: { primary: "#D44997", dark: "#9D2568", soft: "#FAE6F1", label: "ชมพูเข้ม 3" },
+  c60: { primary: "#D4498A", dark: "#9D255D", soft: "#FAE6EF", label: "ชมพูเข้ม 4" },
+  c61: { primary: "#D4497D", dark: "#9D2552", soft: "#FAE6ED", label: "ชมพู" },
+  c62: { primary: "#D44970", dark: "#9D2547", soft: "#FAE6EB", label: "ชมพู 2" },
+  c63: { primary: "#D44963", dark: "#9D253B", soft: "#FAE6E9", label: "ชมพู 3" },
+  c64: { primary: "#D44956", dark: "#9D2530", soft: "#FAE6E8", label: "ชมพู 4" },
 };
 
 const ACCENT = "#FF6B55"; // สีปุ่ม + (คงที่ทุกธีม)
+
+const FONTS = {
+  kanit: { family: "'Kanit', sans-serif", label: "Kanit" },
+  mitr: { family: "'Mitr', sans-serif", label: "Mitr" },
+  prompt: { family: "'Prompt', sans-serif", label: "Prompt" },
+  sarabun: { family: "'Sarabun', sans-serif", label: "Sarabun" },
+  notosans: { family: "'Noto Sans Thai', sans-serif", label: "Noto Sans Thai" },
+  plex: { family: "'IBM Plex Sans Thai', sans-serif", label: "IBM Plex Sans Thai" },
+};
 
 const SUBJECT_PALETTE = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"];
 
@@ -433,7 +500,10 @@ function OwlAvatar({ mood = "neutral", size = 56 }) {
   );
 }
 
-const AVATAR_FRAME_COLORS = ["#6C5CE7", "#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#EC4899", "#111827"];
+const AVATAR_FRAME_COLORS = [
+  "#FFFFFF", "#6C5CE7", "#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#EC4899", "#111827",
+  "#14B8A6", "#F97316", "#A855F7", "#84CC16", "#0EA5E9", "#F43F5E", "#64748B", "#D4AF37",
+];
 
 // แสดงรูปโปรไฟล์ของผู้ใช้พร้อมกรอบที่เลือกไว้ ถ้ายังไม่ได้ตั้งรูปจะ fallback เป็นนกฮูกมาสคอตแทน
 function AvatarDisplay({ profile, mood = "neutral", size = 56 }) {
@@ -643,7 +713,7 @@ function WelcomeScreen({ theme, onLogin, onSignup }) {
   );
 }
 
-function LoginScreen({ theme, email, setEmail, password, setPassword, onSubmit, onBack, onForgotPassword, error, loading }) {
+function LoginScreen({ theme, email, setEmail, password, setPassword, rememberMe, setRememberMe, onSubmit, onBack, onForgotPassword, error, loading }) {
   return (
     <div className="flex flex-col h-full px-6 pt-10 gap-5">
       <button onClick={onBack} className="text-sm text-gray-400 flex items-center gap-1 self-start">
@@ -681,6 +751,18 @@ function LoginScreen({ theme, email, setEmail, password, setPassword, onSubmit, 
         />
         {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
       </div>
+      <button
+        onClick={() => setRememberMe(!rememberMe)}
+        className="flex items-center gap-2 text-sm text-gray-600 -mt-2"
+      >
+        <div
+          className="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0"
+          style={{ borderColor: theme.primary, background: rememberMe ? theme.primary : "white" }}
+        >
+          {rememberMe && <Check size={13} color="white" />}
+        </div>
+        จดจำฉันไว้ในเครื่องนี้ (ไม่ต้องล็อกอินซ้ำครั้งหน้า)
+      </button>
       <button
         onClick={onSubmit}
         disabled={loading}
@@ -737,7 +819,7 @@ function ResetPasswordScreen({ theme, email, password, setPassword, confirmPassw
   );
 }
 
-function SignupEmailScreen({ theme, email, setEmail, password, setPassword, confirmPassword, setConfirmPassword, onNext, onBack, error, loading }) {
+function SignupEmailScreen({ theme, email, setEmail, password, setPassword, confirmPassword, setConfirmPassword, rememberMe, setRememberMe, onNext, onBack, error, loading }) {
   return (
     <div className="flex flex-col h-full px-6 pt-10 gap-5">
       <button onClick={onBack} className="text-sm text-gray-400 flex items-center gap-1 self-start">
@@ -782,6 +864,18 @@ function SignupEmailScreen({ theme, email, setEmail, password, setPassword, conf
         />
         {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
       </div>
+      <button
+        onClick={() => setRememberMe(!rememberMe)}
+        className="flex items-center gap-2 text-sm text-gray-600 -mt-2"
+      >
+        <div
+          className="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0"
+          style={{ borderColor: theme.primary, background: rememberMe ? theme.primary : "white" }}
+        >
+          {rememberMe && <Check size={13} color="white" />}
+        </div>
+        จดจำฉันไว้ในเครื่องนี้ (ไม่ต้องล็อกอินซ้ำครั้งหน้า)
+      </button>
       <button
         onClick={onNext}
         disabled={loading}
@@ -1653,6 +1747,10 @@ function SettingsScreen({
   onToggleNotifications,
   darkMode,
   onToggleDarkMode,
+  fontKey,
+  onFontChange,
+  onChangePassword,
+  onForgotPassword,
   onLogout,
   current,
   onNavigate,
@@ -1661,6 +1759,35 @@ function SettingsScreen({
   const [name, setName] = useState(profile?.name || "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [pwModalOpen, setPwModalOpen] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const handleSubmitChangePassword = async () => {
+    if (newPw.length < 6) {
+      setPwError("รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError("รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน");
+      return;
+    }
+    setPwError("");
+    setPwLoading(true);
+    const result = await onChangePassword(currentPw, newPw);
+    setPwLoading(false);
+    if (!result.success) {
+      setPwError(result.message);
+      return;
+    }
+    setCurrentPw("");
+    setNewPw("");
+    setConfirmPw("");
+    setPwModalOpen(false);
+  };
   const fileInputRef = useRef(null);
 
   const handlePickPhoto = () => {
@@ -1688,7 +1815,7 @@ function SettingsScreen({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full">
       <GradientHeader theme={theme} title="⚙️ ตั้งค่า" subtitle="จัดการโปรไฟล์และการตั้งค่าแอป" mood="neutral" profile={profile} />
 
       <div className="flex-1 overflow-y-auto px-4 mt-4 flex flex-col gap-4 pb-4">
@@ -1755,7 +1882,7 @@ function SettingsScreen({
                 ))}
               </div>
               <div className="text-xs font-medium text-gray-500 mb-2">สีกรอบ</div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {AVATAR_FRAME_COLORS.map((c) => (
                   <button
                     key={c}
@@ -1763,6 +1890,7 @@ function SettingsScreen({
                     className="w-7 h-7 rounded-full"
                     style={{
                       background: c,
+                      boxShadow: c === "#FFFFFF" ? "0 0 0 1px #E5E7EB" : "none",
                       border: (profile.avatarFrameColor || "#6C5CE7") === c ? "3px solid #111827" : "3px solid transparent",
                     }}
                   />
@@ -1773,18 +1901,39 @@ function SettingsScreen({
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
-          <div className="text-sm font-semibold text-gray-700 mb-3">🎨 ธีมสีแอป</div>
-          <div className="flex flex-wrap gap-3">
+          <div className="text-sm font-semibold text-gray-700 mb-3">🎨 ธีมสีแอป ({Object.keys(THEMES).length} สี)</div>
+          <div className="grid grid-cols-8 gap-2">
             {Object.entries(THEMES).map(([key, t]) => (
-              <button key={key} onClick={() => onThemeChange(key)} className="flex flex-col items-center gap-1">
+              <button key={key} onClick={() => onThemeChange(key)} title={t.label} aria-label={t.label}>
                 <div
-                  className="w-9 h-9 rounded-full"
+                  className="w-7 h-7 rounded-full mx-auto"
                   style={{
                     background: `linear-gradient(135deg, ${t.primary}, ${t.dark})`,
-                    border: themeKey === key ? "3px solid #111827" : "3px solid transparent",
+                    border: themeKey === key ? "2.5px solid #111827" : "2.5px solid transparent",
+                    boxShadow: themeKey === key ? "none" : "0 0 0 1px rgba(0,0,0,0.06)",
                   }}
                 />
-                <span className="text-xs text-gray-400">{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-gray-400 mt-2">{theme.label}</div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="text-sm font-semibold text-gray-700 mb-3">🔤 ฟอนต์</div>
+          <div className="flex flex-col gap-2">
+            {Object.entries(FONTS).map(([key, f]) => (
+              <button
+                key={key}
+                onClick={() => onFontChange(key)}
+                className="text-left px-3 py-2 rounded-xl border-2 flex items-center justify-between"
+                style={{
+                  borderColor: fontKey === key ? theme.primary : "transparent",
+                  background: fontKey === key ? theme.soft : "#F9FAFB",
+                }}
+              >
+                <span style={{ fontFamily: f.family, fontSize: 15 }}>{f.label} — ตัวอย่างข้อความ กขค</span>
+                {fontKey === key && <Check size={16} style={{ color: theme.primary }} />}
               </button>
             ))}
           </div>
@@ -1808,8 +1957,21 @@ function SettingsScreen({
             </button>
           </div>
           <div className="text-xs text-gray-400 mt-2">
-            ต้องเปิดแท็บ/เบราว์เซอร์นี้ทิ้งไว้ถึงจะเด้งแจ้งเตือนได้ (ปิดเบราว์เซอร์ไปเลยจะไม่แจ้งเตือน)
+            ต้องเปิดแท็บ/เบราว์เซอร์นี้ทิ้งไว้ถึงจะเด้งแจ้งเตือนได้ (ปิดเบราว์เซอร์ไปเลยจะไม่แจ้งเตือน) — งานใกล้ครบกำหนดจะมีอีเมลแจ้งด้วยอีกทาง
           </div>
+          {notifications && (
+            <button
+              onClick={() => {
+                if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+                  new Notification("🦉 DeadHoot", { body: "ทดสอบการแจ้งเตือน — ถ้าเห็นข้อความนี้แปลว่าใช้งานได้แล้ว!" });
+                }
+              }}
+              className="text-xs font-semibold mt-2"
+              style={{ color: theme.primary }}
+            >
+              ทดสอบการแจ้งเตือน
+            </button>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
@@ -1828,6 +1990,29 @@ function SettingsScreen({
           </button>
         </div>
 
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="text-sm font-semibold text-gray-700 mb-3">🔐 ความปลอดภัย</div>
+          <button
+            onClick={() => {
+              setPwError("");
+              setCurrentPw("");
+              setNewPw("");
+              setConfirmPw("");
+              setPwModalOpen(true);
+            }}
+            className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold mb-2"
+            style={{ color: theme.primary, background: theme.soft }}
+          >
+            เปลี่ยนรหัสผ่าน
+          </button>
+          <button
+            onClick={onForgotPassword}
+            className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-gray-50"
+          >
+            ลืมรหัสผ่านปัจจุบัน? ตั้งใหม่ผ่านอีเมล
+          </button>
+        </div>
+
         <button
           onClick={onLogout}
           className="flex items-center justify-center gap-2 text-red-500 font-semibold py-3 rounded-2xl border border-red-100"
@@ -1837,11 +2022,65 @@ function SettingsScreen({
       </div>
 
       <BottomNav current={current} onNavigate={onNavigate} theme={theme} />
+
+      {pwModalOpen && (
+        <div
+          className="absolute inset-0 flex items-end z-40"
+          style={{ background: "rgba(17,24,39,0.45)" }}
+          onClick={() => setPwModalOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="bg-white w-full rounded-t-3xl p-5"
+            style={{ boxShadow: "0 -12px 34px rgba(17,24,39,0.18)" }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-gray-800">เปลี่ยนรหัสผ่าน</div>
+              <button onClick={() => setPwModalOpen(false)} className="text-gray-400">
+                <X size={20} />
+              </button>
+            </div>
+            <label className="text-sm text-gray-500">รหัสผ่านเดิม</label>
+            <input
+              type="password"
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+              className="w-full border border-gray-200 rounded-2xl p-3 mt-1 mb-3 focus:outline-none"
+            />
+            <label className="text-sm text-gray-500">รหัสผ่านใหม่</label>
+            <input
+              type="password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="อย่างน้อย 6 ตัวอักษร"
+              className="w-full border border-gray-200 rounded-2xl p-3 mt-1 mb-3 focus:outline-none"
+            />
+            <label className="text-sm text-gray-500">ยืนยันรหัสผ่านใหม่</label>
+            <input
+              type="password"
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              className="w-full border border-gray-200 rounded-2xl p-3 mt-1 mb-3 focus:outline-none"
+            />
+            {pwError && <div className="text-xs text-red-500 mb-2">{pwError}</div>}
+            <button
+              onClick={handleSubmitChangePassword}
+              disabled={pwLoading}
+              className="w-full py-3 rounded-2xl text-white font-semibold disabled:opacity-60"
+              style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.dark})` }}
+            >
+              {pwLoading ? "กำลังบันทึก..." : "บันทึกรหัสผ่านใหม่"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-/* ================================ App root ================================ */
 
 function DeadHootApp() {
   const [loading, setLoading] = useState(true);
@@ -1851,6 +2090,7 @@ function DeadHootApp() {
   const [themeKey, setThemeKey] = useState("purple");
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [fontKey, setFontKey] = useState("kanit");
 
   const [screen, setScreen] = useState("welcome");
   const [editingTask, setEditingTask] = useState(null);
@@ -1872,6 +2112,7 @@ function DeadHootApp() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [resetPasswordError, setResetPasswordError] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
 
   const theme = THEMES[themeKey];
 
@@ -1937,6 +2178,7 @@ function DeadHootApp() {
         setThemeKey(d?.theme || "purple");
         setNotifications(d?.notifications ?? true);
         setDarkMode(d?.darkMode ?? false);
+        setFontKey(d?.fontKey ?? "kanit");
         setScreen("home");
       } else {
         setScreen("welcome");
@@ -1955,10 +2197,11 @@ function DeadHootApp() {
         theme: patch.theme ?? themeKey,
         notifications: patch.notifications ?? notifications,
         darkMode: patch.darkMode ?? darkMode,
+        fontKey: patch.fontKey ?? fontKey,
       };
       storageSet(dataKeyFor(targetEmail), next);
     },
-    [profile, subjects, tasks, themeKey, notifications, darkMode]
+    [profile, subjects, tasks, themeKey, notifications, darkMode, fontKey]
   );
 
   const handleLogin = async () => {
@@ -1981,13 +2224,18 @@ function DeadHootApp() {
         return;
       }
       const d = await storageGet(dataKeyFor(cleanEmail));
-      setLocalEmail(cleanEmail);
+      if (rememberMe) {
+        setLocalEmail(cleanEmail);
+      } else {
+        clearLocalEmail();
+      }
       setProfile(result.profile);
       setSubjects(d?.subjects || []);
       setTasks(d?.tasks || []);
       setThemeKey(d?.theme || "purple");
       setNotifications(d?.notifications ?? true);
         setDarkMode(d?.darkMode ?? false);
+        setFontKey(d?.fontKey ?? "kanit");
       setPassword("");
       setScreen("home");
     } catch (e) {
@@ -2118,13 +2366,18 @@ function DeadHootApp() {
         return;
       }
       const d = await storageGet(dataKeyFor(cleanEmail));
-      setLocalEmail(cleanEmail);
+      if (rememberMe) {
+        setLocalEmail(cleanEmail);
+      } else {
+        clearLocalEmail();
+      }
       setProfile(result.profile);
       setSubjects(d?.subjects || []);
       setTasks(d?.tasks || []);
       setThemeKey(d?.theme || "purple");
       setNotifications(d?.notifications ?? true);
         setDarkMode(d?.darkMode ?? false);
+        setFontKey(d?.fontKey ?? "kanit");
       setIsPasswordReset(false);
       setNewPassword("");
       setConfirmNewPassword("");
@@ -2151,7 +2404,11 @@ function DeadHootApp() {
       const seedSubjects = defaultSubjects();
       const seedTasks = defaultTasks(seedSubjects);
       await storageSet(dataKeyFor(cleanEmail), { subjects: seedSubjects, tasks: seedTasks, theme: themeKey, notifications: true });
-      setLocalEmail(cleanEmail);
+      if (rememberMe) {
+        setLocalEmail(cleanEmail);
+      } else {
+        clearLocalEmail();
+      }
       setProfile(newProfile);
       setSubjects(seedSubjects);
       setTasks(seedTasks);
@@ -2256,6 +2513,51 @@ function DeadHootApp() {
     persistData({ darkMode: next });
   };
 
+  const handleFontChange = (key) => {
+    setFontKey(key);
+    persistData({ fontKey: key });
+  };
+
+  // เปลี่ยนรหัสผ่านตอนล็อกอินอยู่ (ต้องรู้รหัสผ่านเดิม)
+  const handleChangePassword = async (currentPassword, newPassword) => {
+    try {
+      const result = await callServer("changePassword", profile.email, currentPassword, newPassword);
+      if (!result.success) {
+        return { success: false, message: result.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ" };
+      }
+      setProfile(result.profile);
+      showToast("เปลี่ยนรหัสผ่านสำเร็จ");
+      return { success: true };
+    } catch (e) {
+      return { success: false, message: "เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง" };
+    }
+  };
+
+  // ลืมรหัสผ่านปัจจุบัน (จากในหน้าตั้งค่า) — ออกจากระบบแล้วพาไปทำ flow ลืมรหัสผ่านแบบ OTP เหมือนหน้า Login
+  const handleForgotPasswordFromSettings = async () => {
+    const targetEmail = profile?.email;
+    if (!targetEmail) return;
+    clearLocalEmail();
+    setEmail(targetEmail);
+    setProfile(null);
+    setSubjects([]);
+    setTasks([]);
+    setAuthLoading(true);
+    try {
+      await callServer("sendOtpEmail", targetEmail);
+      setOtpInput("");
+      setOtpError("");
+      setResendCooldown(30);
+      setIsPasswordReset(true);
+      setScreen("otp");
+    } catch (e) {
+      showToast("ส่งอีเมลไม่สำเร็จ ลองใหม่อีกครั้ง");
+      setScreen("welcome");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const handleProfileSave = async (p) => {
     setProfile(p);
     await storageSet(profileKeyFor(p.email), p);
@@ -2280,7 +2582,7 @@ function DeadHootApp() {
     <div className="phone-shell w-full min-h-screen flex items-center justify-center py-6" style={{ background: "#F3F1FB" }}>
       <div
         className={`phone-frame relative bg-white flex flex-col${darkMode ? " dark" : ""}`}
-        style={{ width: 390, height: 844, borderRadius: 28, boxShadow: "0 20px 60px rgba(76,63,207,0.15)", overflow: "hidden" }}
+        style={{ width: 390, height: 844, borderRadius: 28, boxShadow: "0 20px 60px rgba(76,63,207,0.15)", overflow: "hidden", fontFamily: FONTS[fontKey]?.family || FONTS.kanit.family }}
       >
         <PhoneClock />
         <div className="flex-1 min-h-0 flex flex-col pb-1">
@@ -2301,6 +2603,8 @@ function DeadHootApp() {
               setEmail={setEmail}
               password={password}
               setPassword={setPassword}
+              rememberMe={rememberMe}
+              setRememberMe={setRememberMe}
               onSubmit={handleLogin}
               onBack={() => setScreen("welcome")}
               onForgotPassword={handleForgotPassword}
@@ -2332,6 +2636,8 @@ function DeadHootApp() {
               setPassword={setPassword}
               confirmPassword={confirmPassword}
               setConfirmPassword={setConfirmPassword}
+              rememberMe={rememberMe}
+              setRememberMe={setRememberMe}
               onNext={handleSignupNext}
               onBack={() => setScreen("welcome")}
               error={signupError}
@@ -2439,6 +2745,10 @@ function DeadHootApp() {
               onToggleNotifications={handleToggleNotifications}
               darkMode={darkMode}
               onToggleDarkMode={handleToggleDarkMode}
+              fontKey={fontKey}
+              onFontChange={handleFontChange}
+              onChangePassword={handleChangePassword}
+              onForgotPassword={handleForgotPasswordFromSettings}
               onLogout={handleLogout}
               current="settings"
               onNavigate={setScreen}
